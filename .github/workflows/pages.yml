@@ -1,0 +1,46 @@
+name: deploy demo to gh-pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'demo.py'
+      - 'dashboard.py'
+      - 'parse.py'
+      - 'report_md.py'
+      - 'config.py'
+      - 'requirements.txt'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: install
+        run: pip install -r requirements.txt
+
+      - name: render demo dashboards
+        run: python demo.py
+
+      - name: deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./output
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: 'demo: refresh from ${{ github.sha }}'

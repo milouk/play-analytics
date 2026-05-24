@@ -7,7 +7,10 @@
   <a href="https://github.com/milouk/play-analytics/pkgs/container/play-analytics"><img alt="ghcr" src="https://img.shields.io/badge/ghcr.io-milouk%2Fplay--analytics-2496ED?logo=docker&logoColor=white"></a>
   <a href="https://github.com/milouk/play-analytics/commits/main"><img alt="last commit" src="https://img.shields.io/github/last-commit/milouk/play-analytics?logo=github"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://ko-fi.com/milouk"><img alt="ko-fi" src="https://img.shields.io/badge/ko--fi-buy_me_a_coffee-FF5E5B?logo=ko-fi&logoColor=white"></a>
 </p>
+
+<p align="center"><strong>🛰️ Live demo: <a href="https://milouk.me/projects/play-analytics/">milouk.me/projects/play-analytics</a></strong></p>
 
 > Pulls every metric Google Play exposes for your apps — daily install
 > reports, crash & ANR counts, ratings, store-listing visitors, monthly
