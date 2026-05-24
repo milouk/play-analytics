@@ -1,0 +1,15 @@
+.git
+.github
+.gitignore
+.venv
+data
+output
+.env
+.env.local
+*.log
+*.pyc
+__pycache__
+README.md
+LICENSE
+docs
+docker-compose.yml

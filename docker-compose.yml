@@ -1,0 +1,20 @@
+# Example self-host: regenerate dashboards once a day and serve over HTTP.
+# Use the prebuilt image from GHCR or build locally with `docker compose build`.
+
+services:
+  play-analytics:
+    image: ghcr.io/milouk/play-analytics:latest
+    # build: .  # uncomment to build from source
+    container_name: play-analytics
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SERVE: "true"
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data        # cache (incremental sync — persist for speed)
+      - ./output:/app/output    # generated dashboards
+      # If you use a key file instead of GOOGLE_APPLICATION_CREDENTIALS_JSON:
+      # - ./key.json:/secrets/key.json:ro
