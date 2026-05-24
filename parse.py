@@ -5,7 +5,7 @@ import csv
 import glob
 import json
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -234,6 +234,57 @@ def _summary(m: dict[str, Any]) -> dict[str, Any]:
         "crashes_total": sum(c["crashes"] for c in crashes),
         "anrs_total": sum(c["anrs"] for c in crashes),
     }
+
+
+_EARNINGS_MONTHS = {"Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
+                    "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12}
+
+
+def _parse_earnings_date(s: str) -> date | None:
+    """Parse 'Apr 5, 2026' style dates from the earnings CSV."""
+    try:
+        mon, rest = s.split(" ", 1)
+        day, year = rest.replace(",", "").split()
+        return date(int(year), _EARNINGS_MONTHS[mon], int(day))
+    except (ValueError, KeyError):
+        return None
+
+
+def filter_to_window(metrics: dict[str, Any], days: int | None) -> dict[str, Any]:
+    """Return a shallow copy of metrics filtered to the trailing N days.
+
+    Filters timeline/crashes/ratings/sales/earnings/reviews by date.
+    Country/device/version/os/language aggregates stay all-time
+    (they're already collapsed across dates in the source CSVs).
+    Recomputes the ``summary`` from the filtered slices.
+    """
+    if not days:  # None or 0 means "all time"
+        return metrics
+    timeline = metrics.get("timeline") or []
+    if not timeline:
+        return metrics
+    # Anchor cutoff to the latest data day, not today — reports lag ~2 days.
+    last = date.fromisoformat(timeline[-1]["date"])
+    cutoff = last - timedelta(days=days - 1)
+    cutoff_str = cutoff.isoformat()
+
+    out = dict(metrics)
+    out["timeline"] = [t for t in timeline if t["date"] >= cutoff_str]
+    out["crashes_timeline"] = [c for c in metrics.get("crashes_timeline", [])
+                                if c["date"] >= cutoff_str]
+    out["ratings_timeline"] = [r for r in metrics.get("ratings_timeline", [])
+                                if r["date"] >= cutoff_str]
+    out["sales"] = [s for s in metrics.get("sales", []) if s["date"] >= cutoff_str]
+    out["reviews"] = [r for r in metrics.get("reviews", [])
+                       if r["submitted_at"][:10] >= cutoff_str]
+    out["earnings"] = []
+    for e in metrics.get("earnings", []):
+        d = _parse_earnings_date(e.get("date", ""))
+        if d and d >= cutoff:
+            out["earnings"].append(e)
+    out["window_days"] = days
+    out["summary"] = _summary(out)
+    return out
 
 
 def parse_app(app_data: Path, app: App) -> dict[str, Any]:

@@ -64,6 +64,7 @@ Each dashboard surfaces:
 | **Monetisation** | every charged sales transaction · revenue by currency · paying countries |
 | **Voice of customer** | full review text with stars, device, version, developer reply |
 | **Catalog** | live in-app product list + subscription list + release tracks |
+| **Pricing recommendations** | per-country PPP-tier diagnostic for every IAP — `cut` / `hold` / `raise` / `fine` verdicts with one-click *apply* buttons that copy a CLI command to write the change to Play |
 
 ## What it reads
 
@@ -143,6 +144,8 @@ All via env vars. See [`.env.example`](.env.example) for the full list.
 | `OUTPUT_DIR` | no | where dashboards go — default `/app/output` |
 | `SERVE` | no | `true` to serve `OUTPUT_DIR` over HTTP after rendering |
 | `PORT` | no | server port if `SERVE=true` — default `8080` |
+| `WINDOWS` | no | comma-separated time windows to render — default `7,30,all`. Each becomes a tab in the dashboard. Use `7d,14d,30d,90d,all`, etc. |
+| `CRON_SCHEDULE` | no | standard 5-field cron expression. When set, the image runs `main.py` on schedule (via supercronic) — typical: `0 6 * * *` for daily 06:00 UTC refresh |
 
 ## Running it
 
@@ -222,6 +225,35 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json
 - HTML rendered from string templates with embedded `Chart.js` (single
   `<script>` tag from jsDelivr CDN); each dashboard is a self-contained file
 - ~10 MB final image, multi-arch (`linux/amd64`, `linux/arm64`)
+
+## Pricing recommendations (and writing prices back to Play)
+
+Each in-app product's dashboard section computes a per-country PPP
+verdict based on install/buyer signal and your anchor price:
+
+- **cut** — over the tier target with no paying buyers
+- **hold** — over target *and* has buyers — touching it risks ARPU
+- **raise** — below target (rare, usually after a too-aggressive cut)
+- **fine** — already at the best achievable tier price
+
+Each actionable row has an *apply* button that copies a ready-to-paste
+CLI command to your clipboard:
+
+```bash
+python apply_pricing.py <package> <productId> --only TR --apply
+```
+
+The CLI runs in dry-run mode without `--apply` — it fetches the current
+product, builds the planned diff, and prints it. With `--apply` it sends
+one atomic `monetization.onetimeproducts.patch` covering every change at
+once, then re-fetches every region to verify the new price took.
+
+There's also an **⚡ apply all N** button at the top of each pricing
+card that copies a single command for the entire actionable batch.
+
+The script will **never** touch a region without explicit install signal,
+will never re-price a region marked `hold` (has buyers), and refuses to
+proceed unless the planned diff is exactly what you'd expect.
 
 ## Caveats
 

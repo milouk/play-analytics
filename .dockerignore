@@ -14,3 +14,4 @@ LICENSE
 docs
 docker-compose.yml
 demo.py
+.env.example

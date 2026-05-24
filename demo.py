@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import dashboard
+import parse
 import report_md
 
 
@@ -354,12 +355,50 @@ def _build_app(cfg: dict) -> dict:
     crashes = _build_crashes(rng, timeline)
     earnings = _build_earnings(sales, rng)
 
+    # Build a plausible regional pricing config so the dashboard's
+    # Pricing Recommendations section has something to recommend on.
+    # Some entries are intentionally mispriced (left at USD default) to
+    # demonstrate the "cut" verdict.
+    base = cfg["pro_price_local"]
+    regional_prices = [
+        # Tier-1 markets: anchor / tier-1 pricing.
+        ("US", "USD", base), ("CA", "CAD", round(base * 1.35, 2)),
+        ("GB", "GBP", round(base * 0.85, 2)), ("DE", "EUR", round(base * 1.0, 2)),
+        ("FR", "EUR", round(base * 1.0, 2)), ("AU", "AUD", round(base * 1.5, 2)),
+        ("JP", "JPY", int(base * 150)), ("KR", "KRW", int(base * 1500)),
+        ("SG", "SGD", round(base * 1.35, 2)),
+        # Tier-2 markets: correctly priced.
+        ("BR", "BRL", round(base * 4.0, 2)), ("MX", "MXN", round(base * 18, 2)),
+        ("PL", "PLN", round(base * 2.4, 2)), ("CZ", "CZK", int(base * 14)),
+        # Tier-3 markets at PPP.
+        ("IN", "INR", round(base * 22, 2)), ("ID", "IDR", int(base * 4000)),
+        # Mispriced — these should surface as "cut" recommendations.
+        ("TR", "TRY", round(base * 52, 2)),
+        ("EG", "EGP", round(base * 56, 2)),
+        ("NG", "NGN", round(base * 1370, 2)),
+        ("PK", "PKR", round(base * 260, 2)),
+        ("AR", "USD", base),  # USD default, wrong for AR
+        ("VN", "VND", int(base * 24000)),
+        ("PH", "PHP", round(base * 64, 2)),
+    ]
+    regional_configs = [
+        {"regionCode": rc,
+         "price": {"currencyCode": ccy,
+                   "units": str(int(amt)),
+                   "nanos": int(round((amt - int(amt)) * 1e9))},
+         "availability": "AVAILABLE"}
+        for rc, ccy, amt in regional_prices
+    ]
     api_snapshot = {
         "onetime_products": {
             "oneTimeProducts": [{
                 "productId": cfg["pro_sku"],
                 "listings": [{"languageCode": "en-US", "title": cfg["pro_title"]}],
-                "purchaseOptions": [{"state": "ACTIVE"}],
+                "purchaseOptions": [{
+                    "purchaseOptionId": f"{cfg['pro_sku']}-default",
+                    "state": "ACTIVE",
+                    "regionalPricingAndAvailabilityConfigs": regional_configs,
+                }],
             }],
         },
         "subscriptions": {"subscriptions": []},
@@ -403,17 +442,22 @@ def main() -> None:
 
     all_metrics: list[dict] = []
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    windows: list[int | None] = [7, 30, None]
     for cfg in DEMO_APPS:
-        m = _build_app(cfg)
-        m["generated_at"] = generated_at
-        dash = dashboard.write_dashboard(m, output_dir)
-        md = report_md.write(m, output_dir)
-        all_metrics.append(m)
-        s = m["summary"]
+        full = _build_app(cfg)
+        full["generated_at"] = generated_at
+        for w in windows:
+            m = parse.filter_to_window(full, w)
+            m["windows"] = windows
+            m["current_window"] = w
+            m["_pricing_source"] = full
+            dashboard.write_dashboard(m, output_dir)
+        report_md.write(full, output_dir)
+        all_metrics.append(full)
+        s = full["summary"]
         print(f"  {cfg['package']}: {s['active_devices_now']:,} active · "
-              f"{s['total_user_installs']:,} installs · {s['paid_orders']} sales")
-        print(f"    -> {dash}")
-        print(f"    -> {md}")
+              f"{s['total_user_installs']:,} installs · {s['paid_orders']} sales "
+              f"({len(windows)} window(s))")
     dashboard.write_index(all_metrics, output_dir, generated_at)
     # Tiny banner so visitors know this is synthetic data.
     banner = output_dir / "DEMO.txt"

@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pricing
+
 # -- minimal country reference ---------------------------------------------- #
 
 COUNTRY_NAMES = {
@@ -82,6 +84,7 @@ DASHBOARD_TMPL = """<!doctype html>
   <div>
     <a href="../index.html" class="back">← all apps</a>
     <h1>{title}<span class="pkg">{package}</span></h1>
+    {tabs}
   </div>
   <div class="meta">Window <strong>{window_start} → {window_end}</strong> · generated {generated_at}</div>
 </header>
@@ -131,6 +134,9 @@ DASHBOARD_TMPL = """<!doctype html>
   <div class="card"><div class="h"><h3>Release tracks</h3><span class="sub">live edit snapshot</span></div><div class="scroll"><table><thead><tr><th>Track</th><th>Release</th><th>Versions</th><th>Status</th><th>Rollout</th></tr></thead><tbody>{track_rows}</tbody></table></div></div>
 </div>
 
+<h2>Pricing recommendations</h2>
+{pricing_block}
+
 <footer>data via Play Console reports bucket + Android Publisher API · <a href="https://github.com/milouk/play-analytics">milouk/play-analytics</a></footer>
 
 <script>
@@ -145,6 +151,27 @@ new Chart(document.getElementById('cInstalls'), {{
     {{ type:'line', label:'Active devices', data: data.timeline.map(d=>d.active_devices), borderColor:'#b388ff', backgroundColor:'rgba(179,136,255,0.15)', tension:0.3, fill:true, pointRadius:0 }},
   ] }},
   options: {{ responsive:true, maintainAspectRatio:false, scales: {{ y: {{ beginAtZero:true }}, x: {{ grid: {{ display:false }}, ticks: {{ maxRotation:0, autoSkip:true, maxTicksLimit:12 }} }} }}, plugins: {{ legend: {{ position:'top', labels: {{ color: TXT }} }} }} }}
+}});
+
+// Apply buttons (copy CLI command to clipboard)
+document.querySelectorAll('.apply-btn').forEach(btn => {{
+  btn.addEventListener('click', async (e) => {{
+    e.preventDefault();
+    const cmd = btn.dataset.cmd;
+    try {{
+      await navigator.clipboard.writeText(cmd);
+    }} catch (err) {{
+      // fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = cmd; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+    }}
+    const orig = btn.textContent;
+    btn.classList.add('copied');
+    btn.textContent = '✓ copied';
+    setTimeout(() => {{ btn.classList.remove('copied'); btn.textContent = orig; }}, 1400);
+  }});
 }});
 
 function hBar(id, items, color, max) {{
@@ -282,6 +309,33 @@ footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--border);color
 .app-kpis .val{font-size:18px;font-weight:700;letter-spacing:-0.01em}
 .app-kpis .val.accent{color:var(--accent)} .app-kpis .val.good{color:var(--good)}
 .app-card-sub{font-size:11px;color:var(--muted)}
+
+.pricing-summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:13px}
+.pricing-summary .chip{padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2)}
+.pricing-summary .chip strong{font-variant-numeric:tabular-nums}
+.pricing-summary .chip.cut strong{color:var(--bad)}
+.pricing-summary .chip.fine strong{color:var(--good)}
+.pricing-summary .chip.hold strong{color:var(--warn)}
+.pricing-summary .chip.raise strong{color:var(--accent)}
+.verdict{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:4px;font-weight:600}
+.verdict.cut{background:rgba(248,113,113,.15);color:var(--bad)}
+.verdict.fine{background:rgba(74,222,128,.15);color:var(--good)}
+.verdict.hold{background:rgba(251,191,36,.15);color:var(--warn)}
+.verdict.raise{background:rgba(122,162,255,.15);color:var(--accent)}
+.verdict.skip{background:rgba(139,148,167,.15);color:var(--muted)}
+.pricing-note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+.pricing-note code{background:var(--panel-2);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px}
+
+.tabs{display:flex;gap:6px;margin:14px 0 0;flex-wrap:wrap}
+.tabs .tab{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--muted);font-size:12px;text-decoration:none;font-weight:500}
+.tabs .tab:hover{color:var(--text);text-decoration:none;border-color:var(--accent)}
+.tabs .tab.active{color:var(--text);border-color:var(--accent);background:rgba(122,162,255,0.12)}
+
+.apply-btn{display:inline-flex;align-items:center;gap:4px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:500;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit;transition:border-color .15s,background .15s}
+.apply-btn:hover{border-color:var(--accent);background:rgba(122,162,255,0.1)}
+.apply-btn.copied{border-color:var(--good);color:var(--good)}
+.apply-btn[disabled]{opacity:.5;cursor:default}
+.apply-all{margin-left:auto;padding:5px 12px;font-size:12px;font-weight:600}
 """
 
 
@@ -401,6 +455,152 @@ def _slugify(package: str) -> str:
     return package
 
 
+def _window_label(w: int | None) -> str:
+    return "all-time" if w is None else f"{w}d"
+
+
+def _window_filename(w: int | None) -> str:
+    return "dashboard.html" if w is None else f"dashboard-{w}d.html"
+
+
+def _window_tabs(windows: list[int | None], current: int | None) -> str:
+    """Render the tab strip linking sibling window dashboards."""
+    if not windows or len(windows) < 2:
+        return ""
+    parts = []
+    for w in windows:
+        cls = "tab" + (" active" if w == current else "")
+        parts.append(
+            f"<a class='{cls}' href='{_window_filename(w)}'>"
+            f"{_window_label(w)}</a>"
+        )
+    return f"<div class='tabs'>{''.join(parts)}</div>"
+
+
+def _pricing_block(metrics: dict[str, Any]) -> str:
+    """Cross-reference live IAP catalog with install/buyer data and render
+    a Pricing Recommendations card. Skips silently if no IAP exists."""
+    api = metrics.get("api") or {}
+    products = (api.get("onetime_products") or {}).get("oneTimeProducts") or []
+    if not products:
+        return (
+            "<div class='card'><div class='h'><h3>No in-app products</h3>"
+            "<span class='sub'>nothing to price</span></div></div>"
+        )
+
+    # Pricing decisions look at the *full lifetime* of install + buyer
+    # signal, not the visible time-window. A buyer from 6 months ago in
+    # CZ still proves CZ converts at the full price — windowing it out
+    # would let the recommender drop a market with proven demand.
+    src = metrics.get("_pricing_source") or metrics
+    country_installs = dict(src.get("country_installs") or [])
+    buyers: dict[str, int] = {}
+    for s in src.get("sales", []):
+        if s.get("status") == "Charged" and s.get("country"):
+            buyers[s["country"]] = buyers.get(s["country"], 0) + 1
+
+    blocks: list[str] = []
+    for product in products:
+        recs, anchor = pricing.recommend_for_product(product, country_installs, buyers)
+        # Count by verdict.
+        from collections import Counter
+        counts = Counter(r.verdict for r in recs)
+        product_id = product.get("productId", "?")
+        title = (product.get("listings") or [{}])[0].get("title", "")
+
+        summary = (
+            "<div class='pricing-summary'>"
+            f"<span class='chip'>anchor (US) <strong>${anchor:,.2f}</strong></span>"
+            f"<span class='chip cut'>cut <strong>{counts.get('cut',0)}</strong></span>"
+            f"<span class='chip hold'>hold (have buyers) <strong>{counts.get('hold',0)}</strong></span>"
+            f"<span class='chip fine'>fine <strong>{counts.get('fine',0)}</strong></span>"
+            f"<span class='chip raise'>raise <strong>{counts.get('raise',0)}</strong></span>"
+            f"<span class='chip'>no signal <strong>{counts.get('skip',0)}</strong></span>"
+            "</div>"
+        )
+
+        # Show actionable rows (cut/hold/raise/fine), not unmapped skips.
+        rows: list[str] = []
+        actionable_regions: list[str] = []
+        cmd_base = f"python apply_pricing.py {metrics['package']} {product_id}"
+        for r in recs:
+            if r.verdict == "skip":
+                continue
+            cur_local = pricing.fmt_local_price(r.current_price)
+            cur_usd = f"${r.current_usd:,.2f}" if r.current_usd is not None else "—"
+            sugg_local = pricing.fmt_local_price(r.suggested_price) if r.suggested_price else "—"
+            sugg_usd = f"${r.suggested_usd:,.2f}" if r.suggested_usd is not None else "—"
+            # Apply button only when there's a real change to apply.
+            apply_cell = ""
+            if r.verdict in ("cut", "raise") and r.suggested_price:
+                actionable_regions.append(r.region)
+                row_cmd = f"{cmd_base} --only {r.region} --apply"
+                apply_cell = (
+                    f"<button class='apply-btn' data-cmd=\"{html.escape(row_cmd, quote=True)}\""
+                    f" title='Copy CLI command to clipboard'>apply</button>"
+                )
+            rows.append(
+                "<tr>"
+                f"<td>{html.escape(_country_label(r.region))}</td>"
+                f"<td class='num'>{r.installs:,}</td>"
+                f"<td class='num'>{r.buyers}</td>"
+                f"<td>{html.escape(cur_local)}</td>"
+                f"<td class='num'>{cur_usd}</td>"
+                f"<td>{html.escape(sugg_local)}</td>"
+                f"<td class='num'>{sugg_usd}</td>"
+                f"<td><span class='verdict {r.verdict}'>{r.verdict}</span></td>"
+                f"<td style='color:var(--muted);font-size:12px'>{html.escape(r.reason)}</td>"
+                f"<td>{apply_cell}</td>"
+                "</tr>"
+            )
+        if not rows:
+            rows.append(
+                "<tr><td colspan='10' style='color:var(--muted)'>"
+                "No actionable regions — every market with install signal is "
+                "within tolerance of its PPP tier target.</td></tr>"
+            )
+
+        # Apply-all button (only when there are actionable rows).
+        apply_all = ""
+        if actionable_regions:
+            all_cmd = f"{cmd_base} --only {','.join(actionable_regions)} --apply"
+            apply_all = (
+                f"<button class='apply-btn apply-all' data-cmd=\""
+                f"{html.escape(all_cmd, quote=True)}\""
+                f" title='Copy a single CLI command that applies every actionable row'>"
+                f"⚡ apply all {len(actionable_regions)}</button>"
+            )
+
+        blocks.append(
+            "<div class='card'>"
+            "<div class='h' style='align-items:center'>"
+            f"<h3>{html.escape(product_id)}"
+            "<span style='color:var(--muted);font-weight:400;margin-left:8px;font-size:12px'>"
+            f"{html.escape(title)}</span></h3>"
+            "<span class='sub'>tier targets · ±25% tolerance</span>"
+            f"{apply_all}"
+            "</div>"
+            f"{summary}"
+            "<div class='scroll'><table>"
+            "<thead><tr>"
+            "<th>Country</th><th class='num'>Installs</th><th class='num'>Buyers</th>"
+            "<th>Current</th><th class='num'>~USD</th>"
+            "<th>Suggested</th><th class='num'>~USD</th>"
+            "<th>Verdict</th><th>Reason</th><th></th>"
+            "</tr></thead>"
+            f"<tbody>{''.join(rows)}</tbody></table></div>"
+            "<div class='pricing-note'>"
+            "Targets are PPP-tier baselines, not personalised elasticity estimates — "
+            "treat them as a starting hypothesis. The <em>apply</em> buttons "
+            "copy a ready-to-paste CLI command (dry-run by default; add "
+            "<code>--apply</code> to write to Play)."
+            "</div>"
+            "</div>"
+        )
+
+    return "\n".join(blocks)
+
+
 def render_dashboard(metrics: dict[str, Any]) -> str:
     s = metrics["summary"]
 
@@ -438,10 +638,12 @@ def render_dashboard(metrics: dict[str, Any]) -> str:
         or "—"
     )
 
+    windows = metrics.get("windows") or [metrics.get("current_window")]
     return DASHBOARD_TMPL.format(
         css=CSS,
         title=html.escape(metrics["name"]),
         package=html.escape(metrics["package"]),
+        tabs=_window_tabs(windows, metrics.get("current_window")),
         generated_at=html.escape(metrics["generated_at"]),
         window_start=html.escape(s["window_start"]),
         window_end=html.escape(s["window_end"]),
@@ -464,6 +666,7 @@ def render_dashboard(metrics: dict[str, Any]) -> str:
         review_blocks=_review_blocks(metrics["reviews"]),
         catalog_rows=_catalog_rows(metrics["api"]),
         track_rows=_track_rows(metrics["api"]),
+        pricing_block=_pricing_block(metrics),
         data_json=json.dumps(js_data),
     )
 
@@ -494,7 +697,7 @@ def render_index(all_metrics: list[dict[str, Any]], generated_at: str) -> str:
 def write_dashboard(metrics: dict[str, Any], output_dir: Path) -> Path:
     app_out = output_dir / _slugify(metrics["package"])
     app_out.mkdir(parents=True, exist_ok=True)
-    p = app_out / "dashboard.html"
+    p = app_out / _window_filename(metrics.get("current_window"))
     p.write_text(render_dashboard(metrics), encoding="utf-8")
     return p
 

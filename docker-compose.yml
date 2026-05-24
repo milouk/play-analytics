@@ -11,6 +11,11 @@ services:
     environment:
       SERVE: "true"
       PORT: "8080"
+      # Refresh dashboards daily at 06:00 UTC (reports lag ~48 h).
+      CRON_SCHEDULE: "0 6 * * *"
+      # Time windows to render — each becomes a sibling dashboard-NNd.html
+      # plus dashboard.html for the all-time view, with a tab strip.
+      WINDOWS: "7,30,all"
     ports:
       - "8080:8080"
     volumes:
