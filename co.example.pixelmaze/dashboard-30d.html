@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PixelMaze</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b0d12;--panel:#121620;--panel-2:#181d29;--border:#232a3a;--text:#e6eaf3;--muted:#8b94a7;--accent:#7aa2ff;--accent-2:#b388ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--gold:#facc15;}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:28px max(20px,calc((100% - 1280px)/2))}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:28px;flex-wrap:wrap;gap:12px}
+header .back{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+header h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-0.01em}
+header h1 .pkg{color:var(--muted);font-weight:400;font-size:14px;margin-left:10px}
+header .meta{color:var(--muted);font-size:13px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:36px 0 14px;font-weight:600}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:8px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.kpi .label{font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted)}
+.kpi .value{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:-0.02em}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:4px}
+.kpi.good .value{color:var(--good)} .kpi.warn .value{color:var(--warn)} .kpi.accent .value{color:var(--accent)}
+.row{display:grid;gap:16px}.row-2{grid-template-columns:1fr 1fr}.row-3{grid-template-columns:2fr 1fr 1fr}
+@media (max-width:880px){.row-2,.row-3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
+.card .h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.card .h h3{margin:0;font-size:14px;font-weight:600}
+.card .h .sub{color:var(--muted);font-size:12px}
+.chart-wrap{position:relative;height:280px}.chart-wrap.tall{height:360px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+th{font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:0.05em}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{max-height:360px;overflow-y:auto}
+.review{border-left:3px solid var(--border);padding:10px 14px;margin-bottom:12px;background:var(--panel-2);border-radius:0 8px 8px 0}
+.review.r5{border-color:var(--good)}.review.r4{border-color:#60a5fa}.review.r3{border-color:var(--warn)}
+.review.r2,.review.r1{border-color:var(--bad)}
+.review .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.review .stars{color:var(--gold);letter-spacing:1px}
+.review .text{font-size:14px;line-height:1.5;color:var(--text)}
+.review .empty{font-style:italic;color:var(--muted);font-size:13px}
+.pill{display:inline-block;background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;font-size:11px;color:var(--muted)}
+footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:12px;text-align:center}
+
+.app-cards{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.app-card{display:block;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;color:var(--text);text-decoration:none;transition:border-color .15s,transform .15s}
+.app-card:hover{border-color:var(--accent);text-decoration:none;transform:translateY(-2px)}
+.app-card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.app-card-head h3{margin:0;font-size:17px;font-weight:600}
+.app-card-head .pkg{color:var(--muted);font-size:11px}
+.app-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.app-kpis div{display:flex;flex-direction:column;gap:2px}
+.app-kpis .lbl{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.05em}
+.app-kpis .val{font-size:18px;font-weight:700;letter-spacing:-0.01em}
+.app-kpis .val.accent{color:var(--accent)} .app-kpis .val.good{color:var(--good)}
+.app-card-sub{font-size:11px;color:var(--muted)}
+
+.pricing-summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:13px}
+.pricing-summary .chip{padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2)}
+.pricing-summary .chip strong{font-variant-numeric:tabular-nums}
+.pricing-summary .chip.cut strong{color:var(--bad)}
+.pricing-summary .chip.fine strong{color:var(--good)}
+.pricing-summary .chip.hold strong{color:var(--warn)}
+.pricing-summary .chip.raise strong{color:var(--accent)}
+.verdict{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:4px;font-weight:600}
+.verdict.cut{background:rgba(248,113,113,.15);color:var(--bad)}
+.verdict.fine{background:rgba(74,222,128,.15);color:var(--good)}
+.verdict.hold{background:rgba(251,191,36,.15);color:var(--warn)}
+.verdict.raise{background:rgba(122,162,255,.15);color:var(--accent)}
+.verdict.skip{background:rgba(139,148,167,.15);color:var(--muted)}
+.pricing-note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+.pricing-note code{background:var(--panel-2);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px}
+
+.tabs{display:flex;gap:6px;margin:14px 0 0;flex-wrap:wrap}
+.tabs .tab{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--muted);font-size:12px;text-decoration:none;font-weight:500}
+.tabs .tab:hover{color:var(--text);text-decoration:none;border-color:var(--accent)}
+.tabs .tab.active{color:var(--text);border-color:var(--accent);background:rgba(122,162,255,0.12)}
+
+.apply-btn{display:inline-flex;align-items:center;gap:4px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:500;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit;transition:border-color .15s,background .15s}
+.apply-btn:hover{border-color:var(--accent);background:rgba(122,162,255,0.1)}
+.apply-btn.copied{border-color:var(--good);color:var(--good)}
+.apply-btn[disabled]{opacity:.5;cursor:default}
+.apply-all{margin-left:auto;padding:5px 12px;font-size:12px;font-weight:600}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <a href="../index.html" class="back">← all apps</a>
+    <h1>PixelMaze<span class="pkg">co.example.pixelmaze</span></h1>
+    <div class='tabs'><a class='tab' href='dashboard-7d.html'>7d</a><a class='tab active' href='dashboard-30d.html'>30d</a><a class='tab' href='dashboard.html'>all-time</a></div>
+  </div>
+  <div class="meta">Window <strong>2026-04-23 → 2026-05-22</strong> · generated 2026-05-24T15:42:28Z</div>
+</header>
+
+<div class="grid kpis">
+  <div class="kpi accent"><div class="label">Active devices</div><div class="value">1,187</div><div class="sub">most recent day</div></div>
+  <div class="kpi"><div class="label">User installs</div><div class="value">1,260</div><div class="sub">1,306 install events</div></div>
+  <div class="kpi"><div class="label">Net retention</div><div class="value">53%</div><div class="sub">615 uninstall events</div></div>
+  <div class="kpi good"><div class="label">Paid orders</div><div class="value">28</div><div class="sub">2.22% conversion</div></div>
+  <div class="kpi accent"><div class="label">Net earnings</div><div class="value">€34.40</div><div class="sub">finalised: 2026</div></div>
+  <div class="kpi"><div class="label">Avg rating</div><div class="value">4.0 ★</div><div class="sub">4 reviews</div></div>
+  <div class="kpi warn"><div class="label">Crashes / ANRs</div><div class="value">1 / 3</div><div class="sub">across window</div></div>
+</div>
+
+<h2>Growth</h2>
+<div class="card"><div class="h"><h3>Daily installs &amp; active devices</h3><span class="sub">installs (bars) · active (line)</span></div><div class="chart-wrap tall"><canvas id="cInstalls"></canvas></div></div>
+
+<h2>Geography &amp; audience</h2>
+<div class="row row-2">
+  <div class="card"><div class="h"><h3>Installs by country</h3><span class="sub">top 15</span></div><div class="chart-wrap tall"><canvas id="cCountry"></canvas></div></div>
+  <div class="card"><div class="h"><h3>Languages</h3><span class="sub">top 10</span></div><div class="chart-wrap tall"><canvas id="cLang"></canvas></div></div>
+</div>
+<div class="row row-3" style="margin-top:16px">
+  <div class="card"><div class="h"><h3>Devices</h3><span class="sub">top 12</span></div><div class="chart-wrap"><canvas id="cDevice"></canvas></div></div>
+  <div class="card"><div class="h"><h3>Android OS version</h3><span class="sub">install share</span></div><div class="chart-wrap"><canvas id="cOs"></canvas></div></div>
+  <div class="card"><div class="h"><h3>App version</h3><span class="sub">install share</span></div><div class="chart-wrap"><canvas id="cVer"></canvas></div></div>
+</div>
+
+<h2>Quality</h2>
+<div class="row row-2">
+  <div class="card"><div class="h"><h3>Crashes &amp; ANRs</h3><span class="sub">daily</span></div><div class="chart-wrap"><canvas id="cCrash"></canvas></div></div>
+  <div class="card"><div class="h"><h3>Rating distribution</h3><span class="sub">from review CSVs</span></div><div class="chart-wrap"><canvas id="cStars"></canvas></div></div>
+</div>
+
+<h2>Monetisation</h2>
+<div class="row row-2">
+  <div class="card"><div class="h"><h3>Sales transactions</h3><span class="sub">28 charged</span></div><div class="scroll"><table><thead><tr><th>Date</th><th>Country</th><th>Device</th><th class="num">Price</th><th class="num">Tax</th><th class="num">Charged</th><th>CCY</th></tr></thead><tbody><tr><td>2026-05-20</td><td>🇳🇱 Netherlands</td><td>a16</td><td class='num'>2.99</td><td class='num'>0.32</td><td class='num'>3.31</td><td>EUR</td></tr>
+<tr><td>2026-05-19</td><td>🇯🇵 Japan</td><td>Infinix-X6525</td><td class='num'>448</td><td class='num'>40.08</td><td class='num'>488.08</td><td>JPY</td></tr>
+<tr><td>2026-05-18</td><td>🇩🇪 Germany</td><td>V2511</td><td class='num'>2.99</td><td class='num'>0.47</td><td class='num'>3.46</td><td>EUR</td></tr>
+<tr><td>2026-05-13</td><td>🇩🇪 Germany</td><td>OP5B05L1</td><td class='num'>2.99</td><td class='num'>0.18</td><td class='num'>3.17</td><td>EUR</td></tr>
+<tr><td>2026-05-13</td><td>🇫🇷 France</td><td>V2511</td><td class='num'>2.99</td><td class='num'>0.51</td><td class='num'>3.50</td><td>EUR</td></tr>
+<tr><td>2026-05-13</td><td>🇺🇸 United States</td><td>V2511</td><td class='num'>2.99</td><td class='num'>0.03</td><td class='num'>3.02</td><td>USD</td></tr>
+<tr><td>2026-05-10</td><td>🇳🇱 Netherlands</td><td>dm3q</td><td class='num'>2.99</td><td class='num'>0.40</td><td class='num'>3.39</td><td>EUR</td></tr>
+<tr><td>2026-05-08</td><td>🇯🇵 Japan</td><td>a16</td><td class='num'>448</td><td class='num'>44.86</td><td class='num'>492.86</td><td>JPY</td></tr>
+<tr><td>2026-05-08</td><td>🇰🇷 South Korea</td><td>HWANE</td><td class='num'>4,485</td><td class='num'>81.18</td><td class='num'>4,566.18</td><td>KRW</td></tr>
+<tr><td>2026-05-07</td><td>🇬🇧 United Kingdom</td><td>e3q</td><td class='num'>2.54</td><td class='num'>0.00</td><td class='num'>2.54</td><td>GBP</td></tr>
+<tr><td>2026-05-04</td><td>🇮🇹 Italy</td><td>e3q</td><td class='num'>2.99</td><td class='num'>0.61</td><td class='num'>3.60</td><td>EUR</td></tr>
+<tr><td>2026-05-03</td><td>🇧🇷 Brazil</td><td>m3q</td><td class='num'>14.65</td><td class='num'>1.81</td><td class='num'>16.46</td><td>BRL</td></tr>
+<tr><td>2026-05-03</td><td>🇩🇪 Germany</td><td>OP5B05L1</td><td class='num'>2.99</td><td class='num'>0.02</td><td class='num'>3.01</td><td>EUR</td></tr>
+<tr><td>2026-05-03</td><td>🇩🇪 Germany</td><td>V2511</td><td class='num'>2.99</td><td class='num'>0.58</td><td class='num'>3.57</td><td>EUR</td></tr>
+<tr><td>2026-05-02</td><td>🇳🇱 Netherlands</td><td>dm3q</td><td class='num'>2.99</td><td class='num'>0.32</td><td class='num'>3.31</td><td>EUR</td></tr>
+<tr><td>2026-04-29</td><td>🇫🇷 France</td><td>pa3q</td><td class='num'>2.99</td><td class='num'>0.51</td><td class='num'>3.50</td><td>EUR</td></tr>
+<tr><td>2026-04-28</td><td>🇦🇺 Australia</td><td>tanzanite</td><td class='num'>4.49</td><td class='num'>0.25</td><td class='num'>4.74</td><td>AUD</td></tr>
+<tr><td>2026-04-27</td><td>🇺🇸 United States</td><td>m3q</td><td class='num'>2.99</td><td class='num'>0.04</td><td class='num'>3.03</td><td>USD</td></tr>
+<tr><td>2026-04-27</td><td>🇩🇪 Germany</td><td>e3q</td><td class='num'>2.99</td><td class='num'>0.26</td><td class='num'>3.25</td><td>EUR</td></tr>
+<tr><td>2026-04-26</td><td>🇬🇧 United Kingdom</td><td>V2511</td><td class='num'>2.54</td><td class='num'>0.21</td><td class='num'>2.75</td><td>GBP</td></tr>
+<tr><td>2026-04-26</td><td>🇯🇵 Japan</td><td>a16</td><td class='num'>448</td><td class='num'>63.07</td><td class='num'>511.07</td><td>JPY</td></tr>
+<tr><td>2026-04-26</td><td>🇺🇸 United States</td><td>dm3q</td><td class='num'>2.99</td><td class='num'>0.09</td><td class='num'>3.08</td><td>USD</td></tr>
+<tr><td>2026-04-25</td><td>🇯🇵 Japan</td><td>e3q</td><td class='num'>448</td><td class='num'>76.85</td><td class='num'>524.85</td><td>JPY</td></tr>
+<tr><td>2026-04-24</td><td>🇳🇱 Netherlands</td><td>tanzanite</td><td class='num'>2.99</td><td class='num'>0.37</td><td class='num'>3.36</td><td>EUR</td></tr>
+<tr><td>2026-04-24</td><td>🇬🇧 United Kingdom</td><td>V2511</td><td class='num'>2.54</td><td class='num'>0.02</td><td class='num'>2.56</td><td>GBP</td></tr>
+<tr><td>2026-04-23</td><td>🇩🇪 Germany</td><td>OP5B05L1</td><td class='num'>2.99</td><td class='num'>0.50</td><td class='num'>3.49</td><td>EUR</td></tr>
+<tr><td>2026-04-23</td><td>🇺🇸 United States</td><td>a16</td><td class='num'>2.99</td><td class='num'>0.24</td><td class='num'>3.23</td><td>USD</td></tr>
+<tr><td>2026-04-23</td><td>🇧🇷 Brazil</td><td>Infinix-X6525</td><td class='num'>14.65</td><td class='num'>0.81</td><td class='num'>15.46</td><td>BRL</td></tr></tbody></table></div></div>
+  <div class="card"><div class="h"><h3>Revenue &amp; paying countries</h3><span class="sub">window total</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"><span class='pill'>₩4,566</span><span class='pill'>¥2,016.86</span><span class='pill'>€43.92</span><span class='pill'>R$31.92</span><span class='pill'>$12.36</span><span class='pill'>£7.85</span><span class='pill'>A$4.74</span></div><table><thead><tr><th>Country</th><th class="num">Buyers</th></tr></thead><tbody><tr><td>🇩🇪 Germany</td><td class='num'>6</td></tr>
+<tr><td>🇺🇸 United States</td><td class='num'>4</td></tr>
+<tr><td>🇳🇱 Netherlands</td><td class='num'>4</td></tr>
+<tr><td>🇯🇵 Japan</td><td class='num'>4</td></tr>
+<tr><td>🇬🇧 United Kingdom</td><td class='num'>3</td></tr>
+<tr><td>🇧🇷 Brazil</td><td class='num'>2</td></tr>
+<tr><td>🇫🇷 France</td><td class='num'>2</td></tr>
+<tr><td>🇦🇺 Australia</td><td class='num'>1</td></tr>
+<tr><td>🇮🇹 Italy</td><td class='num'>1</td></tr>
+<tr><td>🇰🇷 South Korea</td><td class='num'>1</td></tr></tbody></table></div>
+</div>
+
+<h2>Voice of customer</h2>
+<div class="card"><div class="h"><h3>Reviews</h3><span class="sub">4 total · avg 4.0★</span></div><div><div class='review r5'><div class='meta'><span class='stars'>★★★★★</span><span>2026-05-17</span><span>de</span><span>dm3q</span><span>v27 (3.1.2)</span></div><div class='text'>Bought this for my niece, ended up addicted myself.</div></div>
+<div class='review r4'><div class='meta'><span class='stars'>★★★★☆</span><span>2026-05-07</span><span>de</span><span>m3q</span><span>v27 (3.1.2)</span></div><div class='text'>Wish there were more daily challenges.</div></div>
+<div class='review r5'><div class='meta'><span class='stars'>★★★★★</span><span>2026-05-05</span><span>es</span><span>e3q</span><span>v28 (3.1.2)</span></div><div class='empty'>(no text)</div></div>
+<div class='review r2'><div class='meta'><span class='stars'>★★☆☆☆</span><span>2026-04-26</span><span>es</span><span>HWANE</span><span>v29 (3.1.2)</span></div><div class='text'>Crashed on me once on level 23. Otherwise great.</div></div></div></div>
+
+<h2>Catalog</h2>
+<div class="row row-2">
+  <div class="card"><div class="h"><h3>In-app products</h3><span class="sub">monetization API</span></div><div class="scroll"><table><thead><tr><th>Product ID</th><th>Title</th><th>State</th><th>Type</th></tr></thead><tbody><tr><td>pixelmaze_unlock</td><td>Unlock all packs</td><td>ACTIVE</td><td>one-time</td></tr></tbody></table></div></div>
+  <div class="card"><div class="h"><h3>Release tracks</h3><span class="sub">live edit snapshot</span></div><div class="scroll"><table><thead><tr><th>Track</th><th>Release</th><th>Versions</th><th>Status</th><th>Rollout</th></tr></thead><tbody><tr><td>production</td><td>3.1.2</td><td>29</td><td>completed</td><td>100%</td></tr></tbody></table></div></div>
+</div>
+
+<h2>Pricing recommendations</h2>
+<div class='card'><div class='h' style='align-items:center'><h3>pixelmaze_unlock<span style='color:var(--muted);font-weight:400;margin-left:8px;font-size:12px'>Unlock all packs</span></h3><span class='sub'>tier targets · ±25% tolerance</span><button class='apply-btn apply-all' data-cmd="python apply_pricing.py co.example.pixelmaze pixelmaze_unlock --only MX,TR,EG,PK,PH,AR,VN --apply" title='Copy a single CLI command that applies every actionable row'>⚡ apply all 7</button></div><div class='pricing-summary'><span class='chip'>anchor (US) <strong>$2.99</strong></span><span class='chip cut'>cut <strong>7</strong></span><span class='chip hold'>hold (have buyers) <strong>1</strong></span><span class='chip fine'>fine <strong>12</strong></span><span class='chip raise'>raise <strong>0</strong></span><span class='chip'>no signal <strong>2</strong></span></div><div class='scroll'><table><thead><tr><th>Country</th><th class='num'>Installs</th><th class='num'>Buyers</th><th>Current</th><th class='num'>~USD</th><th>Suggested</th><th class='num'>~USD</th><th>Verdict</th><th>Reason</th><th></th></tr></thead><tbody><tr><td>🇲🇽 Mexico</td><td class='num'>80</td><td class='num'>0</td><td>53.82 MXN</td><td class='num'>$2.91</td><td>33.99 MXN</td><td class='num'>$1.84</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+62% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.pixelmaze pixelmaze_unlock --only MX --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇹🇷 Turkey</td><td class='num'>51</td><td class='num'>0</td><td>155.48 TRY</td><td class='num'>$4.51</td><td>30.99 TRY</td><td class='num'>$0.90</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+403% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.pixelmaze pixelmaze_unlock --only TR --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇪🇬 Egypt</td><td class='num'>44</td><td class='num'>0</td><td>167.44 EGP</td><td class='num'>$3.52</td><td>28.99 EGP</td><td class='num'>$0.61</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+488% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.pixelmaze pixelmaze_unlock --only EG --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇵🇰 Pakistan</td><td class='num'>40</td><td class='num'>0</td><td>777.40 PKR</td><td class='num'>$2.80</td><td>249.99 PKR</td><td class='num'>$0.90</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+212% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.pixelmaze pixelmaze_unlock --only PK --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇵🇭 Philippines</td><td class='num'>40</td><td class='num'>0</td><td>191.36 PHP</td><td class='num'>$3.44</td><td>49.99 PHP</td><td class='num'>$0.90</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+284% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.pixelmaze pixelmaze_unlock --only PH --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇦🇷 Argentina</td><td class='num'>34</td><td class='num'>0</td><td>2.99 USD</td><td class='num'>$2.99</td><td>0.99 USD</td><td class='num'>$0.99</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+233% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.pixelmaze pixelmaze_unlock --only AR --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇻🇳 Vietnam</td><td class='num'>28</td><td class='num'>0</td><td>71,760 VND</td><td class='num'>$2.94</td><td>21,899 VND</td><td class='num'>$0.90</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+228% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.pixelmaze pixelmaze_unlock --only VN --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇧🇷 Brazil</td><td class='num'>132</td><td class='num'>3</td><td>11.96 BRL</td><td class='num'>$2.39</td><td>8.99 BRL</td><td class='num'>$1.80</td><td><span class='verdict hold'>hold</span></td><td style='color:var(--muted);font-size:12px'>3 buyer(s) — risk to ARPU</td><td></td></tr><tr><td>🇺🇸 United States</td><td class='num'>321</td><td class='num'>9</td><td>2.99 USD</td><td class='num'>$2.99</td><td>2.99 USD</td><td class='num'>$2.99</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>already at best tier price</td><td></td></tr><tr><td>🇮🇳 India</td><td class='num'>261</td><td class='num'>0</td><td>65.78 INR</td><td class='num'>$0.79</td><td>74.99 INR</td><td class='num'>$0.90</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇩🇪 Germany</td><td class='num'>127</td><td class='num'>7</td><td>2.99 EUR</td><td class='num'>$3.29</td><td>2.99 EUR</td><td class='num'>$3.29</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>already at best tier price</td><td></td></tr><tr><td>🇬🇧 United Kingdom</td><td class='num'>107</td><td class='num'>3</td><td>2.54 GBP</td><td class='num'>$3.23</td><td>2.99 GBP</td><td class='num'>$3.80</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇮🇩 Indonesia</td><td class='num'>95</td><td class='num'>0</td><td>11,960 IDR</td><td class='num'>$0.74</td><td>14,599 IDR</td><td class='num'>$0.90</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇵🇱 Poland</td><td class='num'>60</td><td class='num'>0</td><td>7.18 PLN</td><td class='num'>$1.79</td><td>7.99 PLN</td><td class='num'>$2.00</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇫🇷 France</td><td class='num'>58</td><td class='num'>3</td><td>2.99 EUR</td><td class='num'>$3.29</td><td>2.99 EUR</td><td class='num'>$3.29</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>already at best tier price</td><td></td></tr><tr><td>🇦🇺 Australia</td><td class='num'>54</td><td class='num'>1</td><td>4.49 AUD</td><td class='num'>$2.96</td><td>4.99 AUD</td><td class='num'>$3.29</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇨🇦 Canada</td><td class='num'>51</td><td class='num'>1</td><td>4.04 CAD</td><td class='num'>$2.95</td><td>4.99 CAD</td><td class='num'>$3.64</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇰🇷 South Korea</td><td class='num'>21</td><td class='num'>1</td><td>4,485 KRW</td><td class='num'>$3.05</td><td>4,399 KRW</td><td class='num'>$2.99</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇨🇿 Czechia</td><td class='num'>19</td><td class='num'>0</td><td>41.00 CZK</td><td class='num'>$1.76</td><td>41.99 CZK</td><td class='num'>$1.81</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇯🇵 Japan</td><td class='num'>16</td><td class='num'>4</td><td>448 JPY</td><td class='num'>$2.91</td><td>469 JPY</td><td class='num'>$3.05</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr></tbody></table></div><div class='pricing-note'>Targets are PPP-tier baselines, not personalised elasticity estimates — treat them as a starting hypothesis. The <em>apply</em> buttons copy a ready-to-paste CLI command (dry-run by default; add <code>--apply</code> to write to Play).</div></div>
+
+<footer>data via Play Console reports bucket + Android Publisher API · <a href="https://github.com/milouk/play-analytics">milouk/play-analytics</a></footer>
+
+<script>
+const data = {"timeline": [{"date": "2026-04-23", "device_installs": 28, "user_installs": 28, "user_uninstalls": 9, "active_devices": 546, "install_events": 30, "uninstall_events": 9, "update_events": 26}, {"date": "2026-04-24", "device_installs": 28, "user_installs": 28, "user_uninstalls": 9, "active_devices": 565, "install_events": 30, "uninstall_events": 9, "update_events": 27}, {"date": "2026-04-25", "device_installs": 30, "user_installs": 30, "user_uninstalls": 9, "active_devices": 586, "install_events": 31, "uninstall_events": 9, "update_events": 28}, {"date": "2026-04-26", "device_installs": 31, "user_installs": 31, "user_uninstalls": 10, "active_devices": 607, "install_events": 32, "uninstall_events": 10, "update_events": 30}, {"date": "2026-04-27", "device_installs": 39, "user_installs": 39, "user_uninstalls": 14, "active_devices": 632, "install_events": 40, "uninstall_events": 14, "update_events": 31}, {"date": "2026-04-28", "device_installs": 38, "user_installs": 38, "user_uninstalls": 13, "active_devices": 657, "install_events": 39, "uninstall_events": 13, "update_events": 32}, {"date": "2026-04-29", "device_installs": 34, "user_installs": 34, "user_uninstalls": 13, "active_devices": 679, "install_events": 35, "uninstall_events": 13, "update_events": 32}, {"date": "2026-04-30", "device_installs": 31, "user_installs": 31, "user_uninstalls": 11, "active_devices": 698, "install_events": 32, "uninstall_events": 11, "update_events": 34}, {"date": "2026-05-01", "device_installs": 35, "user_installs": 35, "user_uninstalls": 14, "active_devices": 719, "install_events": 36, "uninstall_events": 14, "update_events": 35}, {"date": "2026-05-02", "device_installs": 44, "user_installs": 44, "user_uninstalls": 18, "active_devices": 746, "install_events": 46, "uninstall_events": 18, "update_events": 36}, {"date": "2026-05-03", "device_installs": 32, "user_installs": 32, "user_uninstalls": 13, "active_devices": 765, "install_events": 34, "uninstall_events": 13, "update_events": 38}, {"date": "2026-05-04", "device_installs": 43, "user_installs": 43, "user_uninstalls": 18, "active_devices": 790, "install_events": 44, "uninstall_events": 18, "update_events": 39}, {"date": "2026-05-05", "device_installs": 46, "user_installs": 46, "user_uninstalls": 19, "active_devices": 817, "install_events": 47, "uninstall_events": 19, "update_events": 40}, {"date": "2026-05-06", "device_installs": 32, "user_installs": 32, "user_uninstalls": 14, "active_devices": 835, "install_events": 34, "uninstall_events": 14, "update_events": 40}, {"date": "2026-05-07", "device_installs": 44, "user_installs": 44, "user_uninstalls": 21, "active_devices": 859, "install_events": 46, "uninstall_events": 21, "update_events": 42}, {"date": "2026-05-08", "device_installs": 53, "user_installs": 53, "user_uninstalls": 25, "active_devices": 888, "install_events": 56, "uninstall_events": 25, "update_events": 43}, {"date": "2026-05-09", "device_installs": 28, "user_installs": 28, "user_uninstalls": 13, "active_devices": 904, "install_events": 30, "uninstall_events": 13, "update_events": 44}, {"date": "2026-05-10", "device_installs": 40, "user_installs": 40, "user_uninstalls": 19, "active_devices": 925, "install_events": 42, "uninstall_events": 19, "update_events": 46}, {"date": "2026-05-11", "device_installs": 46, "user_installs": 46, "user_uninstalls": 23, "active_devices": 947, "install_events": 47, "uninstall_events": 23, "update_events": 47}, {"date": "2026-05-12", "device_installs": 40, "user_installs": 40, "user_uninstalls": 21, "active_devices": 967, "install_events": 42, "uninstall_events": 21, "update_events": 47}, {"date": "2026-05-13", "device_installs": 51, "user_installs": 51, "user_uninstalls": 27, "active_devices": 990, "install_events": 52, "uninstall_events": 28, "update_events": 48}, {"date": "2026-05-14", "device_installs": 48, "user_installs": 48, "user_uninstalls": 26, "active_devices": 1013, "install_events": 50, "uninstall_events": 27, "update_events": 50}, {"date": "2026-05-15", "device_installs": 39, "user_installs": 39, "user_uninstalls": 21, "active_devices": 1031, "install_events": 40, "uninstall_events": 21, "update_events": 51}, {"date": "2026-05-16", "device_installs": 51, "user_installs": 51, "user_uninstalls": 28, "active_devices": 1054, "install_events": 52, "uninstall_events": 30, "update_events": 52}, {"date": "2026-05-17", "device_installs": 51, "user_installs": 51, "user_uninstalls": 28, "active_devices": 1076, "install_events": 52, "uninstall_events": 30, "update_events": 52}, {"date": "2026-05-18", "device_installs": 59, "user_installs": 59, "user_uninstalls": 34, "active_devices": 1101, "install_events": 61, "uninstall_events": 35, "update_events": 53}, {"date": "2026-05-19", "device_installs": 63, "user_installs": 63, "user_uninstalls": 38, "active_devices": 1126, "install_events": 65, "uninstall_events": 39, "update_events": 55}, {"date": "2026-05-20", "device_installs": 55, "user_installs": 55, "user_uninstalls": 32, "active_devices": 1148, "install_events": 57, "uninstall_events": 34, "update_events": 56}, {"date": "2026-05-21", "device_installs": 55, "user_installs": 55, "user_uninstalls": 34, "active_devices": 1169, "install_events": 57, "uninstall_events": 35, "update_events": 57}, {"date": "2026-05-22", "device_installs": 46, "user_installs": 46, "user_uninstalls": 28, "active_devices": 1187, "install_events": 47, "uninstall_events": 30, "update_events": 59}], "country_installs": [{"label": "\ud83c\uddfa\ud83c\uddf8 United States", "value": 321}, {"label": "\ud83c\uddee\ud83c\uddf3 India", "value": 261}, {"label": "\ud83c\udde7\ud83c\uddf7 Brazil", "value": 132}, {"label": "\ud83c\udde9\ud83c\uddea Germany", "value": 127}, {"label": "\ud83c\uddec\ud83c\udde7 United Kingdom", "value": 107}, {"label": "\ud83c\uddee\ud83c\udde9 Indonesia", "value": 95}, {"label": "\ud83c\uddf2\ud83c\uddfd Mexico", "value": 80}, {"label": "\ud83c\uddee\ud83c\uddf9 Italy", "value": 80}, {"label": "\ud83c\uddf5\ud83c\uddf1 Poland", "value": 60}, {"label": "\ud83c\uddeb\ud83c\uddf7 France", "value": 58}, {"label": "\ud83c\udde6\ud83c\uddfa Australia", "value": 54}, {"label": "\ud83c\udde8\ud83c\udde6 Canada", "value": 51}, {"label": "\ud83c\uddf9\ud83c\uddf7 Turkey", "value": 51}, {"label": "\ud83c\uddea\ud83c\uddf8 Spain", "value": 49}, {"label": "\ud83c\uddea\ud83c\uddec Egypt", "value": 44}], "device_installs": [{"label": "dm3q", "value": 187}, {"label": "pa3q", "value": 175}, {"label": "e3q", "value": 169}, {"label": "HWANE", "value": 133}, {"label": "m3q", "value": 104}, {"label": "V2511", "value": 96}, {"label": "tanzanite", "value": 85}, {"label": "a16", "value": 82}, {"label": "OP5B05L1", "value": 82}, {"label": "Infinix-X6525", "value": 77}, {"label": "a12s", "value": 75}, {"label": "blazer", "value": 75}], "os_installs": [{"label": "API 36", "value": 562}, {"label": "API 35", "value": 480}, {"label": "API 34", "value": 317}, {"label": "API 33", "value": 236}, {"label": "API 32", "value": 103}, {"label": "API 31", "value": 78}, {"label": "API 30", "value": 53}, {"label": "API 29", "value": 49}], "version_installs": [{"label": "v29", "value": 715}, {"label": "v28", "value": 462}, {"label": "v27", "value": 271}, {"label": "v26", "value": 121}, {"label": "v25", "value": 102}, {"label": "v24", "value": 101}, {"label": "v23", "value": 67}, {"label": "v22", "value": 39}], "language_installs": [{"label": "en_US", "value": 596}, {"label": "en_GB", "value": 246}, {"label": "en_IN", "value": 165}, {"label": "es_US", "value": 146}, {"label": "de_DE", "value": 116}, {"label": "pt_BR", "value": 94}, {"label": "es_ES", "value": 70}, {"label": "fr_FR", "value": 68}, {"label": "it_IT", "value": 68}, {"label": "id_ID", "value": 55}], "crashes_timeline": [{"date": "2026-04-23", "crashes": 0, "anrs": 0}, {"date": "2026-04-24", "crashes": 0, "anrs": 0}, {"date": "2026-04-25", "crashes": 1, "anrs": 0}, {"date": "2026-04-26", "crashes": 0, "anrs": 0}, {"date": "2026-04-27", "crashes": 0, "anrs": 0}, {"date": "2026-04-28", "crashes": 0, "anrs": 0}, {"date": "2026-04-29", "crashes": 0, "anrs": 0}, {"date": "2026-04-30", "crashes": 0, "anrs": 0}, {"date": "2026-05-01", "crashes": 0, "anrs": 0}, {"date": "2026-05-02", "crashes": 0, "anrs": 0}, {"date": "2026-05-03", "crashes": 0, "anrs": 0}, {"date": "2026-05-04", "crashes": 0, "anrs": 0}, {"date": "2026-05-05", "crashes": 0, "anrs": 0}, {"date": "2026-05-06", "crashes": 0, "anrs": 0}, {"date": "2026-05-07", "crashes": 0, "anrs": 0}, {"date": "2026-05-08", "crashes": 0, "anrs": 0}, {"date": "2026-05-09", "crashes": 0, "anrs": 3}, {"date": "2026-05-10", "crashes": 0, "anrs": 0}, {"date": "2026-05-11", "crashes": 0, "anrs": 0}, {"date": "2026-05-12", "crashes": 0, "anrs": 0}, {"date": "2026-05-13", "crashes": 0, "anrs": 0}, {"date": "2026-05-14", "crashes": 0, "anrs": 0}, {"date": "2026-05-15", "crashes": 0, "anrs": 0}, {"date": "2026-05-16", "crashes": 0, "anrs": 0}, {"date": "2026-05-17", "crashes": 0, "anrs": 0}, {"date": "2026-05-18", "crashes": 0, "anrs": 0}, {"date": "2026-05-19", "crashes": 0, "anrs": 0}, {"date": "2026-05-20", "crashes": 0, "anrs": 0}, {"date": "2026-05-21", "crashes": 0, "anrs": 0}, {"date": "2026-05-22", "crashes": 0, "anrs": 0}], "star_dist": {"2": 1, "5": 2, "4": 1}};
+const TXT='#e6eaf3', MUTED='#8b94a7', GRID='#232a3a';
+Chart.defaults.color=MUTED; Chart.defaults.borderColor=GRID;
+Chart.defaults.font.family='-apple-system, BlinkMacSystemFont, Inter, Segoe UI, system-ui, sans-serif';
+
+new Chart(document.getElementById('cInstalls'), {
+  data: { labels: data.timeline.map(d=>d.date), datasets: [
+    { type:'bar', label:'User installs', data: data.timeline.map(d=>d.user_installs), backgroundColor:'rgba(122,162,255,0.55)', borderRadius:3 },
+    { type:'line', label:'Active devices', data: data.timeline.map(d=>d.active_devices), borderColor:'#b388ff', backgroundColor:'rgba(179,136,255,0.15)', tension:0.3, fill:true, pointRadius:0 },
+  ] },
+  options: { responsive:true, maintainAspectRatio:false, scales: { y: { beginAtZero:true }, x: { grid: { display:false }, ticks: { maxRotation:0, autoSkip:true, maxTicksLimit:12 } } }, plugins: { legend: { position:'top', labels: { color: TXT } } } }
+});
+
+// Apply buttons (copy CLI command to clipboard)
+document.querySelectorAll('.apply-btn').forEach(btn => {
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const cmd = btn.dataset.cmd;
+    try {
+      await navigator.clipboard.writeText(cmd);
+    } catch (err) {
+      // fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = cmd; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+    }
+    const orig = btn.textContent;
+    btn.classList.add('copied');
+    btn.textContent = '✓ copied';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = orig; }, 1400);
+  });
+});
+
+function hBar(id, items, color, max) {
+  const top = items.slice(0, max||10);
+  new Chart(document.getElementById(id), { type:'bar',
+    data: { labels: top.map(x=>x.label), datasets:[{ data: top.map(x=>x.value), backgroundColor: color, borderRadius:3 }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales: { x:{beginAtZero:true}, y:{grid:{display:false}} } }
+  });
+}
+hBar('cCountry', data.country_installs, 'rgba(122,162,255,0.7)', 15);
+hBar('cLang',    data.language_installs,'rgba(179,136,255,0.65)', 10);
+hBar('cDevice',  data.device_installs,  'rgba(74,222,128,0.55)',  12);
+
+const palette = ['#7aa2ff','#b388ff','#4ade80','#facc15','#f87171','#22d3ee','#f472b6','#a3e635','#fb923c','#94a3b8','#818cf8','#34d399'];
+function doughnut(id, items) {
+  new Chart(document.getElementById(id), { type:'doughnut',
+    data: { labels: items.map(x=>x.label), datasets:[{ data: items.map(x=>x.value), backgroundColor: palette, borderColor:'#0b0d12', borderWidth:2 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'58%', plugins: { legend: { position:'right', labels: { color: TXT, boxWidth:10 } } } }
+  });
+}
+doughnut('cOs',  data.os_installs);
+doughnut('cVer', data.version_installs);
+
+new Chart(document.getElementById('cCrash'), {
+  data: { labels: data.crashes_timeline.map(d=>d.date), datasets: [
+    { type:'bar', label:'Crashes', data: data.crashes_timeline.map(d=>d.crashes), backgroundColor:'#f87171', borderRadius:3 },
+    { type:'bar', label:'ANRs',    data: data.crashes_timeline.map(d=>d.anrs),    backgroundColor:'#fbbf24', borderRadius:3 },
+  ] },
+  options: { responsive:true, maintainAspectRatio:false, scales: { y: { beginAtZero:true, ticks: { stepSize:1 } }, x: { grid: { display:false } } }, plugins: { legend: { position:'top', labels: { color: TXT } } } }
+});
+
+new Chart(document.getElementById('cStars'), {
+  type:'bar',
+  data: { labels:['1★','2★','3★','4★','5★'], datasets:[{ data:[data.star_dist['1']||0,data.star_dist['2']||0,data.star_dist['3']||0,data.star_dist['4']||0,data.star_dist['5']||0], backgroundColor:['#f87171','#fb923c','#fbbf24','#60a5fa','#4ade80'], borderRadius:3 }] },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales: { y: { beginAtZero:true, ticks: { stepSize:1 } }, x: { grid: { display:false } } } }
+});
+</script>
+</body>
+</html>

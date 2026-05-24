@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Whisper</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b0d12;--panel:#121620;--panel-2:#181d29;--border:#232a3a;--text:#e6eaf3;--muted:#8b94a7;--accent:#7aa2ff;--accent-2:#b388ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--gold:#facc15;}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:28px max(20px,calc((100% - 1280px)/2))}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:28px;flex-wrap:wrap;gap:12px}
+header .back{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+header h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-0.01em}
+header h1 .pkg{color:var(--muted);font-weight:400;font-size:14px;margin-left:10px}
+header .meta{color:var(--muted);font-size:13px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:36px 0 14px;font-weight:600}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:8px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.kpi .label{font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted)}
+.kpi .value{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:-0.02em}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:4px}
+.kpi.good .value{color:var(--good)} .kpi.warn .value{color:var(--warn)} .kpi.accent .value{color:var(--accent)}
+.row{display:grid;gap:16px}.row-2{grid-template-columns:1fr 1fr}.row-3{grid-template-columns:2fr 1fr 1fr}
+@media (max-width:880px){.row-2,.row-3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
+.card .h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.card .h h3{margin:0;font-size:14px;font-weight:600}
+.card .h .sub{color:var(--muted);font-size:12px}
+.chart-wrap{position:relative;height:280px}.chart-wrap.tall{height:360px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+th{font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:0.05em}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{max-height:360px;overflow-y:auto}
+.review{border-left:3px solid var(--border);padding:10px 14px;margin-bottom:12px;background:var(--panel-2);border-radius:0 8px 8px 0}
+.review.r5{border-color:var(--good)}.review.r4{border-color:#60a5fa}.review.r3{border-color:var(--warn)}
+.review.r2,.review.r1{border-color:var(--bad)}
+.review .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.review .stars{color:var(--gold);letter-spacing:1px}
+.review .text{font-size:14px;line-height:1.5;color:var(--text)}
+.review .empty{font-style:italic;color:var(--muted);font-size:13px}
+.pill{display:inline-block;background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;font-size:11px;color:var(--muted)}
+footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:12px;text-align:center}
+
+.app-cards{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.app-card{display:block;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;color:var(--text);text-decoration:none;transition:border-color .15s,transform .15s}
+.app-card:hover{border-color:var(--accent);text-decoration:none;transform:translateY(-2px)}
+.app-card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.app-card-head h3{margin:0;font-size:17px;font-weight:600}
+.app-card-head .pkg{color:var(--muted);font-size:11px}
+.app-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.app-kpis div{display:flex;flex-direction:column;gap:2px}
+.app-kpis .lbl{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.05em}
+.app-kpis .val{font-size:18px;font-weight:700;letter-spacing:-0.01em}
+.app-kpis .val.accent{color:var(--accent)} .app-kpis .val.good{color:var(--good)}
+.app-card-sub{font-size:11px;color:var(--muted)}
+
+.pricing-summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:13px}
+.pricing-summary .chip{padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2)}
+.pricing-summary .chip strong{font-variant-numeric:tabular-nums}
+.pricing-summary .chip.cut strong{color:var(--bad)}
+.pricing-summary .chip.fine strong{color:var(--good)}
+.pricing-summary .chip.hold strong{color:var(--warn)}
+.pricing-summary .chip.raise strong{color:var(--accent)}
+.verdict{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:4px;font-weight:600}
+.verdict.cut{background:rgba(248,113,113,.15);color:var(--bad)}
+.verdict.fine{background:rgba(74,222,128,.15);color:var(--good)}
+.verdict.hold{background:rgba(251,191,36,.15);color:var(--warn)}
+.verdict.raise{background:rgba(122,162,255,.15);color:var(--accent)}
+.verdict.skip{background:rgba(139,148,167,.15);color:var(--muted)}
+.pricing-note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+.pricing-note code{background:var(--panel-2);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px}
+
+.tabs{display:flex;gap:6px;margin:14px 0 0;flex-wrap:wrap}
+.tabs .tab{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--muted);font-size:12px;text-decoration:none;font-weight:500}
+.tabs .tab:hover{color:var(--text);text-decoration:none;border-color:var(--accent)}
+.tabs .tab.active{color:var(--text);border-color:var(--accent);background:rgba(122,162,255,0.12)}
+
+.apply-btn{display:inline-flex;align-items:center;gap:4px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:500;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit;transition:border-color .15s,background .15s}
+.apply-btn:hover{border-color:var(--accent);background:rgba(122,162,255,0.1)}
+.apply-btn.copied{border-color:var(--good);color:var(--good)}
+.apply-btn[disabled]{opacity:.5;cursor:default}
+.apply-all{margin-left:auto;padding:5px 12px;font-size:12px;font-weight:600}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <a href="../index.html" class="back">← all apps</a>
+    <h1>Whisper<span class="pkg">co.example.whisper</span></h1>
+    <div class='tabs'><a class='tab' href='dashboard-7d.html'>7d</a><a class='tab' href='dashboard-30d.html'>30d</a><a class='tab active' href='dashboard.html'>all-time</a></div>
+  </div>
+  <div class="meta">Window <strong>2026-03-24 → 2026-05-22</strong> · generated 2026-05-24T15:42:28Z</div>
+</header>
+
+<div class="grid kpis">
+  <div class="kpi accent"><div class="label">Active devices</div><div class="value">412</div><div class="sub">most recent day</div></div>
+  <div class="kpi"><div class="label">User installs</div><div class="value">595</div><div class="sub">595 install events</div></div>
+  <div class="kpi"><div class="label">Net retention</div><div class="value">68%</div><div class="sub">193 uninstall events</div></div>
+  <div class="kpi good"><div class="label">Paid orders</div><div class="value">13</div><div class="sub">2.19% conversion</div></div>
+  <div class="kpi accent"><div class="label">Net earnings</div><div class="value">€39.52</div><div class="sub">finalised: 2026-04</div></div>
+  <div class="kpi"><div class="label">Avg rating</div><div class="value">4.57 ★</div><div class="sub">7 reviews</div></div>
+  <div class="kpi warn"><div class="label">Crashes / ANRs</div><div class="value">6 / 8</div><div class="sub">across window</div></div>
+</div>
+
+<h2>Growth</h2>
+<div class="card"><div class="h"><h3>Daily installs &amp; active devices</h3><span class="sub">installs (bars) · active (line)</span></div><div class="chart-wrap tall"><canvas id="cInstalls"></canvas></div></div>
+
+<h2>Geography &amp; audience</h2>
+<div class="row row-2">
+  <div class="card"><div class="h"><h3>Installs by country</h3><span class="sub">top 15</span></div><div class="chart-wrap tall"><canvas id="cCountry"></canvas></div></div>
+  <div class="card"><div class="h"><h3>Languages</h3><span class="sub">top 10</span></div><div class="chart-wrap tall"><canvas id="cLang"></canvas></div></div>
+</div>
+<div class="row row-3" style="margin-top:16px">
+  <div class="card"><div class="h"><h3>Devices</h3><span class="sub">top 12</span></div><div class="chart-wrap"><canvas id="cDevice"></canvas></div></div>
+  <div class="card"><div class="h"><h3>Android OS version</h3><span class="sub">install share</span></div><div class="chart-wrap"><canvas id="cOs"></canvas></div></div>
+  <div class="card"><div class="h"><h3>App version</h3><span class="sub">install share</span></div><div class="chart-wrap"><canvas id="cVer"></canvas></div></div>
+</div>
+
+<h2>Quality</h2>
+<div class="row row-2">
+  <div class="card"><div class="h"><h3>Crashes &amp; ANRs</h3><span class="sub">daily</span></div><div class="chart-wrap"><canvas id="cCrash"></canvas></div></div>
+  <div class="card"><div class="h"><h3>Rating distribution</h3><span class="sub">from review CSVs</span></div><div class="chart-wrap"><canvas id="cStars"></canvas></div></div>
+</div>
+
+<h2>Monetisation</h2>
+<div class="row row-2">
+  <div class="card"><div class="h"><h3>Sales transactions</h3><span class="sub">13 charged</span></div><div class="scroll"><table><thead><tr><th>Date</th><th>Country</th><th>Device</th><th class="num">Price</th><th class="num">Tax</th><th class="num">Charged</th><th>CCY</th></tr></thead><tbody><tr><td>2026-05-16</td><td>🇰🇷 South Korea</td><td>pa3q</td><td class='num'>7,485</td><td class='num'>1,385.83</td><td class='num'>8,870.83</td><td>KRW</td></tr>
+<tr><td>2026-05-14</td><td>🇩🇪 Germany</td><td>a16</td><td class='num'>4.99</td><td class='num'>0.58</td><td class='num'>5.57</td><td>EUR</td></tr>
+<tr><td>2026-05-14</td><td>🇩🇪 Germany</td><td>tanzanite</td><td class='num'>4.99</td><td class='num'>0.85</td><td class='num'>5.84</td><td>EUR</td></tr>
+<tr><td>2026-05-13</td><td>🇦🇺 Australia</td><td>HWANE</td><td class='num'>7.49</td><td class='num'>1.33</td><td class='num'>8.82</td><td>AUD</td></tr>
+<tr><td>2026-04-27</td><td>🇺🇸 United States</td><td>Infinix-X6525</td><td class='num'>4.99</td><td class='num'>0.16</td><td class='num'>5.15</td><td>USD</td></tr>
+<tr><td>2026-04-24</td><td>🇺🇸 United States</td><td>dm3q</td><td class='num'>4.99</td><td class='num'>0.67</td><td class='num'>5.66</td><td>USD</td></tr>
+<tr><td>2026-04-19</td><td>🇦🇺 Australia</td><td>Infinix-X6525</td><td class='num'>7.49</td><td class='num'>0.24</td><td class='num'>7.73</td><td>AUD</td></tr>
+<tr><td>2026-04-19</td><td>🇦🇺 Australia</td><td>e3q</td><td class='num'>7.49</td><td class='num'>0.31</td><td class='num'>7.80</td><td>AUD</td></tr>
+<tr><td>2026-04-18</td><td>🇨🇦 Canada</td><td>Infinix-X6525</td><td class='num'>6.74</td><td class='num'>0.06</td><td class='num'>6.80</td><td>CAD</td></tr>
+<tr><td>2026-04-12</td><td>🇳🇱 Netherlands</td><td>dm3q</td><td class='num'>4.99</td><td class='num'>0.60</td><td class='num'>5.59</td><td>EUR</td></tr>
+<tr><td>2026-04-10</td><td>🇰🇷 South Korea</td><td>Infinix-X6525</td><td class='num'>7,485</td><td class='num'>821.39</td><td class='num'>8,306.39</td><td>KRW</td></tr>
+<tr><td>2026-04-06</td><td>🇩🇪 Germany</td><td>tanzanite</td><td class='num'>4.99</td><td class='num'>1.05</td><td class='num'>6.04</td><td>EUR</td></tr>
+<tr><td>2026-04-01</td><td>🇸🇪 Sweden</td><td>Infinix-X6525</td><td class='num'>52.40</td><td class='num'>4.37</td><td class='num'>56.77</td><td>SEK</td></tr></tbody></table></div></div>
+  <div class="card"><div class="h"><h3>Revenue &amp; paying countries</h3><span class="sub">window total</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"><span class='pill'>₩17,177</span><span class='pill'>56.77 SEK</span><span class='pill'>A$24.35</span><span class='pill'>€23.04</span><span class='pill'>$10.81</span><span class='pill'>C$6.80</span></div><table><thead><tr><th>Country</th><th class="num">Buyers</th></tr></thead><tbody><tr><td>🇩🇪 Germany</td><td class='num'>3</td></tr>
+<tr><td>🇦🇺 Australia</td><td class='num'>3</td></tr>
+<tr><td>🇰🇷 South Korea</td><td class='num'>2</td></tr>
+<tr><td>🇺🇸 United States</td><td class='num'>2</td></tr>
+<tr><td>🇸🇪 Sweden</td><td class='num'>1</td></tr>
+<tr><td>🇳🇱 Netherlands</td><td class='num'>1</td></tr>
+<tr><td>🇨🇦 Canada</td><td class='num'>1</td></tr></tbody></table></div>
+</div>
+
+<h2>Voice of customer</h2>
+<div class="card"><div class="h"><h3>Reviews</h3><span class="sub">7 total · avg 4.57★</span></div><div><div class='review r5'><div class='meta'><span class='stars'>★★★★★</span><span>2026-05-10</span><span>en</span><span>m3q</span><span>v13 (1.4.0)</span></div><div class='text'>Replaced three apps for me. Daily driver now.</div></div>
+<div class='review r3'><div class='meta'><span class='stars'>★★★☆☆</span><span>2026-05-02</span><span>pt</span><span>HWANE</span><span>v12 (1.4.0)</span></div><div class='text'>Feels slow on my older device sometimes.</div></div>
+<div class='review r5'><div class='meta'><span class='stars'>★★★★★</span><span>2026-04-25</span><span>es</span><span>dm3q</span><span>v12 (1.4.0)</span></div><div class='text'>Clean, fast, no telemetry. Exactly what I wanted.</div></div>
+<div class='review r5'><div class='meta'><span class='stars'>★★★★★</span><span>2026-04-22</span><span>pt</span><span>HWANE</span><span>v13 (1.4.0)</span></div><div class='empty'>(no text)</div></div>
+<div class='review r4'><div class='meta'><span class='stars'>★★★★☆</span><span>2026-04-16</span><span>de</span><span>m3q</span><span>v12 (1.4.0)</span></div><div class='text'>Great app overall — would love a tablet layout.</div></div>
+<div class='review r5'><div class='meta'><span class='stars'>★★★★★</span><span>2026-04-07</span><span>de</span><span>HWANE</span><span>v13 (1.4.0)</span></div><div class='text'>Bought Pro the same day I installed it. Worth every cent.</div></div>
+<div class='review r5'><div class='meta'><span class='stars'>★★★★★</span><span>2026-04-05</span><span>en</span><span>pa3q</span><span>v13 (1.4.0)</span></div><div class='text'>Finally a notes app that doesn&#x27;t get in my way. Sync just works.</div></div></div></div>
+
+<h2>Catalog</h2>
+<div class="row row-2">
+  <div class="card"><div class="h"><h3>In-app products</h3><span class="sub">monetization API</span></div><div class="scroll"><table><thead><tr><th>Product ID</th><th>Title</th><th>State</th><th>Type</th></tr></thead><tbody><tr><td>whisper_pro</td><td>Whisper Pro</td><td>ACTIVE</td><td>one-time</td></tr></tbody></table></div></div>
+  <div class="card"><div class="h"><h3>Release tracks</h3><span class="sub">live edit snapshot</span></div><div class="scroll"><table><thead><tr><th>Track</th><th>Release</th><th>Versions</th><th>Status</th><th>Rollout</th></tr></thead><tbody><tr><td>production</td><td>1.4.0</td><td>13</td><td>completed</td><td>100%</td></tr></tbody></table></div></div>
+</div>
+
+<h2>Pricing recommendations</h2>
+<div class='card'><div class='h' style='align-items:center'><h3>whisper_pro<span style='color:var(--muted);font-weight:400;margin-left:8px;font-size:12px'>Whisper Pro</span></h3><span class='sub'>tier targets · ±25% tolerance</span><button class='apply-btn apply-all' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only BR,MX,VN,PH,PK,EG,TR,AR --apply" title='Copy a single CLI command that applies every actionable row'>⚡ apply all 8</button></div><div class='pricing-summary'><span class='chip'>anchor (US) <strong>$4.99</strong></span><span class='chip cut'>cut <strong>8</strong></span><span class='chip hold'>hold (have buyers) <strong>0</strong></span><span class='chip fine'>fine <strong>12</strong></span><span class='chip raise'>raise <strong>0</strong></span><span class='chip'>no signal <strong>2</strong></span></div><div class='scroll'><table><thead><tr><th>Country</th><th class='num'>Installs</th><th class='num'>Buyers</th><th>Current</th><th class='num'>~USD</th><th>Suggested</th><th class='num'>~USD</th><th>Verdict</th><th>Reason</th><th></th></tr></thead><tbody><tr><td>🇧🇷 Brazil</td><td class='num'>38</td><td class='num'>0</td><td>19.96 BRL</td><td class='num'>$3.99</td><td>14.99 BRL</td><td class='num'>$3.00</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+33% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only BR --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇲🇽 Mexico</td><td class='num'>29</td><td class='num'>0</td><td>89.82 MXN</td><td class='num'>$4.85</td><td>55.99 MXN</td><td class='num'>$3.02</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+62% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only MX --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇻🇳 Vietnam</td><td class='num'>16</td><td class='num'>0</td><td>119,760 VND</td><td class='num'>$4.91</td><td>36,599 VND</td><td class='num'>$1.50</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+228% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only VN --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇵🇭 Philippines</td><td class='num'>15</td><td class='num'>0</td><td>319.36 PHP</td><td class='num'>$5.75</td><td>83.99 PHP</td><td class='num'>$1.51</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+284% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only PH --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇵🇰 Pakistan</td><td class='num'>14</td><td class='num'>0</td><td>1,297.40 PKR</td><td class='num'>$4.67</td><td>415.99 PKR</td><td class='num'>$1.50</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+212% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only PK --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇪🇬 Egypt</td><td class='num'>12</td><td class='num'>0</td><td>279.44 EGP</td><td class='num'>$5.87</td><td>47.99 EGP</td><td class='num'>$1.01</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+488% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only EG --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇹🇷 Turkey</td><td class='num'>9</td><td class='num'>0</td><td>259.48 TRY</td><td class='num'>$7.52</td><td>51.99 TRY</td><td class='num'>$1.51</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+403% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only TR --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇦🇷 Argentina</td><td class='num'>7</td><td class='num'>0</td><td>4.99 USD</td><td class='num'>$4.99</td><td>1.99 USD</td><td class='num'>$1.99</td><td><span class='verdict cut'>cut</span></td><td style='color:var(--muted);font-size:12px'>+233% vs tier target, 0 buyers</td><td><button class='apply-btn' data-cmd="python apply_pricing.py co.example.whisper whisper_pro --only AR --apply" title='Copy CLI command to clipboard'>apply</button></td></tr><tr><td>🇺🇸 United States</td><td class='num'>90</td><td class='num'>2</td><td>4.99 USD</td><td class='num'>$4.99</td><td>4.99 USD</td><td class='num'>$4.99</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>already at best tier price</td><td></td></tr><tr><td>🇮🇳 India</td><td class='num'>89</td><td class='num'>0</td><td>109.78 INR</td><td class='num'>$1.32</td><td>124.99 INR</td><td class='num'>$1.50</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇩🇪 Germany</td><td class='num'>40</td><td class='num'>3</td><td>4.99 EUR</td><td class='num'>$5.49</td><td>4.99 EUR</td><td class='num'>$5.49</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>already at best tier price</td><td></td></tr><tr><td>🇬🇧 United Kingdom</td><td class='num'>36</td><td class='num'>0</td><td>4.24 GBP</td><td class='num'>$5.38</td><td>3.99 GBP</td><td class='num'>$5.07</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇮🇩 Indonesia</td><td class='num'>27</td><td class='num'>0</td><td>19,960 IDR</td><td class='num'>$1.23</td><td>24,399 IDR</td><td class='num'>$1.50</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇫🇷 France</td><td class='num'>20</td><td class='num'>0</td><td>4.99 EUR</td><td class='num'>$5.49</td><td>4.99 EUR</td><td class='num'>$5.49</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>already at best tier price</td><td></td></tr><tr><td>🇨🇦 Canada</td><td class='num'>19</td><td class='num'>1</td><td>6.74 CAD</td><td class='num'>$4.92</td><td>6.99 CAD</td><td class='num'>$5.10</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇵🇱 Poland</td><td class='num'>19</td><td class='num'>0</td><td>11.98 PLN</td><td class='num'>$3.00</td><td>11.99 PLN</td><td class='num'>$3.00</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇦🇺 Australia</td><td class='num'>17</td><td class='num'>3</td><td>7.49 AUD</td><td class='num'>$4.94</td><td>7.99 AUD</td><td class='num'>$5.27</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇨🇿 Czechia</td><td class='num'>8</td><td class='num'>0</td><td>69.00 CZK</td><td class='num'>$2.97</td><td>69.99 CZK</td><td class='num'>$3.01</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇯🇵 Japan</td><td class='num'>7</td><td class='num'>0</td><td>748 JPY</td><td class='num'>$4.86</td><td>799 JPY</td><td class='num'>$5.19</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr><tr><td>🇰🇷 South Korea</td><td class='num'>5</td><td class='num'>2</td><td>7,485 KRW</td><td class='num'>$5.09</td><td>7,399 KRW</td><td class='num'>$5.03</td><td><span class='verdict fine'>fine</span></td><td style='color:var(--muted);font-size:12px'>within ±25% of tier target</td><td></td></tr></tbody></table></div><div class='pricing-note'>Targets are PPP-tier baselines, not personalised elasticity estimates — treat them as a starting hypothesis. The <em>apply</em> buttons copy a ready-to-paste CLI command (dry-run by default; add <code>--apply</code> to write to Play).</div></div>
+
+<footer>data via Play Console reports bucket + Android Publisher API · <a href="https://github.com/milouk/play-analytics">milouk/play-analytics</a></footer>
+
+<script>
+const data = {"timeline": [{"date": "2026-03-24", "device_installs": 2, "user_installs": 2, "user_uninstalls": 0, "active_devices": 2, "install_events": 2, "uninstall_events": 0, "update_events": 0}, {"date": "2026-03-25", "device_installs": 2, "user_installs": 2, "user_uninstalls": 0, "active_devices": 5, "install_events": 2, "uninstall_events": 0, "update_events": 0}, {"date": "2026-03-26", "device_installs": 2, "user_installs": 2, "user_uninstalls": 0, "active_devices": 7, "install_events": 2, "uninstall_events": 0, "update_events": 0}, {"date": "2026-03-27", "device_installs": 5, "user_installs": 5, "user_uninstalls": 0, "active_devices": 13, "install_events": 5, "uninstall_events": 0, "update_events": 0}, {"date": "2026-03-28", "device_installs": 3, "user_installs": 3, "user_uninstalls": 0, "active_devices": 17, "install_events": 3, "uninstall_events": 0, "update_events": 0}, {"date": "2026-03-29", "device_installs": 1, "user_installs": 1, "user_uninstalls": 0, "active_devices": 18, "install_events": 1, "uninstall_events": 0, "update_events": 0}, {"date": "2026-03-30", "device_installs": 5, "user_installs": 5, "user_uninstalls": 0, "active_devices": 23, "install_events": 5, "uninstall_events": 0, "update_events": 0}, {"date": "2026-03-31", "device_installs": 3, "user_installs": 3, "user_uninstalls": 0, "active_devices": 27, "install_events": 3, "uninstall_events": 0, "update_events": 1}, {"date": "2026-04-01", "device_installs": 3, "user_installs": 3, "user_uninstalls": 0, "active_devices": 31, "install_events": 3, "uninstall_events": 0, "update_events": 1}, {"date": "2026-04-02", "device_installs": 5, "user_installs": 5, "user_uninstalls": 0, "active_devices": 36, "install_events": 5, "uninstall_events": 0, "update_events": 1}, {"date": "2026-04-03", "device_installs": 5, "user_installs": 5, "user_uninstalls": 0, "active_devices": 41, "install_events": 5, "uninstall_events": 0, "update_events": 1}, {"date": "2026-04-04", "device_installs": 7, "user_installs": 7, "user_uninstalls": 0, "active_devices": 49, "install_events": 7, "uninstall_events": 0, "update_events": 1}, {"date": "2026-04-05", "device_installs": 7, "user_installs": 7, "user_uninstalls": 0, "active_devices": 57, "install_events": 7, "uninstall_events": 0, "update_events": 2}, {"date": "2026-04-06", "device_installs": 6, "user_installs": 6, "user_uninstalls": 0, "active_devices": 64, "install_events": 6, "uninstall_events": 0, "update_events": 2}, {"date": "2026-04-07", "device_installs": 5, "user_installs": 5, "user_uninstalls": 0, "active_devices": 69, "install_events": 5, "uninstall_events": 0, "update_events": 2}, {"date": "2026-04-08", "device_installs": 3, "user_installs": 3, "user_uninstalls": 0, "active_devices": 73, "install_events": 3, "uninstall_events": 0, "update_events": 2}, {"date": "2026-04-09", "device_installs": 7, "user_installs": 7, "user_uninstalls": 1, "active_devices": 80, "install_events": 7, "uninstall_events": 1, "update_events": 3}, {"date": "2026-04-10", "device_installs": 10, "user_installs": 10, "user_uninstalls": 1, "active_devices": 89, "install_events": 10, "uninstall_events": 1, "update_events": 3}, {"date": "2026-04-11", "device_installs": 7, "user_installs": 7, "user_uninstalls": 1, "active_devices": 95, "install_events": 7, "uninstall_events": 1, "update_events": 3}, {"date": "2026-04-12", "device_installs": 7, "user_installs": 7, "user_uninstalls": 1, "active_devices": 102, "install_events": 7, "uninstall_events": 1, "update_events": 3}, {"date": "2026-04-13", "device_installs": 9, "user_installs": 9, "user_uninstalls": 1, "active_devices": 110, "install_events": 9, "uninstall_events": 1, "update_events": 5}, {"date": "2026-04-14", "device_installs": 5, "user_installs": 5, "user_uninstalls": 0, "active_devices": 115, "install_events": 5, "uninstall_events": 0, "update_events": 5}, {"date": "2026-04-15", "device_installs": 7, "user_installs": 7, "user_uninstalls": 1, "active_devices": 122, "install_events": 7, "uninstall_events": 1, "update_events": 5}, {"date": "2026-04-16", "device_installs": 9, "user_installs": 9, "user_uninstalls": 1, "active_devices": 129, "install_events": 9, "uninstall_events": 1, "update_events": 5}, {"date": "2026-04-17", "device_installs": 10, "user_installs": 10, "user_uninstalls": 2, "active_devices": 137, "install_events": 10, "uninstall_events": 2, "update_events": 6}, {"date": "2026-04-18", "device_installs": 7, "user_installs": 7, "user_uninstalls": 1, "active_devices": 144, "install_events": 7, "uninstall_events": 1, "update_events": 6}, {"date": "2026-04-19", "device_installs": 10, "user_installs": 10, "user_uninstalls": 2, "active_devices": 152, "install_events": 10, "uninstall_events": 2, "update_events": 6}, {"date": "2026-04-20", "device_installs": 10, "user_installs": 10, "user_uninstalls": 2, "active_devices": 160, "install_events": 10, "uninstall_events": 2, "update_events": 7}, {"date": "2026-04-21", "device_installs": 11, "user_installs": 11, "user_uninstalls": 2, "active_devices": 169, "install_events": 11, "uninstall_events": 2, "update_events": 7}, {"date": "2026-04-22", "device_installs": 7, "user_installs": 7, "user_uninstalls": 1, "active_devices": 175, "install_events": 7, "uninstall_events": 1, "update_events": 7}, {"date": "2026-04-23", "device_installs": 11, "user_installs": 11, "user_uninstalls": 2, "active_devices": 185, "install_events": 11, "uninstall_events": 2, "update_events": 9}, {"date": "2026-04-24", "device_installs": 6, "user_installs": 6, "user_uninstalls": 1, "active_devices": 190, "install_events": 6, "uninstall_events": 1, "update_events": 9}, {"date": "2026-04-25", "device_installs": 5, "user_installs": 5, "user_uninstalls": 1, "active_devices": 194, "install_events": 5, "uninstall_events": 1, "update_events": 9}, {"date": "2026-04-26", "device_installs": 9, "user_installs": 9, "user_uninstalls": 2, "active_devices": 200, "install_events": 9, "uninstall_events": 2, "update_events": 9}, {"date": "2026-04-27", "device_installs": 9, "user_installs": 9, "user_uninstalls": 2, "active_devices": 207, "install_events": 9, "uninstall_events": 2, "update_events": 9}, {"date": "2026-04-28", "device_installs": 14, "user_installs": 14, "user_uninstalls": 5, "active_devices": 216, "install_events": 14, "uninstall_events": 5, "update_events": 10}, {"date": "2026-04-29", "device_installs": 14, "user_installs": 14, "user_uninstalls": 5, "active_devices": 225, "install_events": 14, "uninstall_events": 5, "update_events": 10}, {"date": "2026-04-30", "device_installs": 9, "user_installs": 9, "user_uninstalls": 2, "active_devices": 232, "install_events": 9, "uninstall_events": 2, "update_events": 10}, {"date": "2026-05-01", "device_installs": 15, "user_installs": 15, "user_uninstalls": 5, "active_devices": 242, "install_events": 15, "uninstall_events": 5, "update_events": 11}, {"date": "2026-05-02", "device_installs": 10, "user_installs": 10, "user_uninstalls": 3, "active_devices": 249, "install_events": 10, "uninstall_events": 3, "update_events": 11}, {"date": "2026-05-03", "device_installs": 11, "user_installs": 11, "user_uninstalls": 3, "active_devices": 257, "install_events": 11, "uninstall_events": 3, "update_events": 11}, {"date": "2026-05-04", "device_installs": 11, "user_installs": 11, "user_uninstalls": 3, "active_devices": 265, "install_events": 11, "uninstall_events": 3, "update_events": 13}, {"date": "2026-05-05", "device_installs": 14, "user_installs": 14, "user_uninstalls": 6, "active_devices": 272, "install_events": 14, "uninstall_events": 6, "update_events": 13}, {"date": "2026-05-06", "device_installs": 17, "user_installs": 17, "user_uninstalls": 7, "active_devices": 282, "install_events": 17, "uninstall_events": 7, "update_events": 13}, {"date": "2026-05-07", "device_installs": 15, "user_installs": 15, "user_uninstalls": 6, "active_devices": 291, "install_events": 15, "uninstall_events": 6, "update_events": 14}, {"date": "2026-05-08", "device_installs": 15, "user_installs": 15, "user_uninstalls": 6, "active_devices": 300, "install_events": 15, "uninstall_events": 6, "update_events": 14}, {"date": "2026-05-09", "device_installs": 15, "user_installs": 15, "user_uninstalls": 6, "active_devices": 309, "install_events": 15, "uninstall_events": 6, "update_events": 14}, {"date": "2026-05-10", "device_installs": 15, "user_installs": 15, "user_uninstalls": 7, "active_devices": 317, "install_events": 15, "uninstall_events": 7, "update_events": 15}, {"date": "2026-05-11", "device_installs": 14, "user_installs": 14, "user_uninstalls": 6, "active_devices": 325, "install_events": 14, "uninstall_events": 6, "update_events": 15}, {"date": "2026-05-12", "device_installs": 14, "user_installs": 14, "user_uninstalls": 6, "active_devices": 333, "install_events": 14, "uninstall_events": 6, "update_events": 15}, {"date": "2026-05-13", "device_installs": 15, "user_installs": 15, "user_uninstalls": 7, "active_devices": 341, "install_events": 15, "uninstall_events": 7, "update_events": 17}, {"date": "2026-05-14", "device_installs": 17, "user_installs": 17, "user_uninstalls": 9, "active_devices": 349, "install_events": 17, "uninstall_events": 9, "update_events": 17}, {"date": "2026-05-15", "device_installs": 15, "user_installs": 15, "user_uninstalls": 7, "active_devices": 356, "install_events": 15, "uninstall_events": 7, "update_events": 17}, {"date": "2026-05-16", "device_installs": 20, "user_installs": 20, "user_uninstalls": 11, "active_devices": 366, "install_events": 20, "uninstall_events": 11, "update_events": 17}, {"date": "2026-05-17", "device_installs": 14, "user_installs": 14, "user_uninstalls": 7, "active_devices": 372, "install_events": 14, "uninstall_events": 7, "update_events": 18}, {"date": "2026-05-18", "device_installs": 14, "user_installs": 14, "user_uninstalls": 7, "active_devices": 379, "install_events": 14, "uninstall_events": 7, "update_events": 18}, {"date": "2026-05-19", "device_installs": 19, "user_installs": 19, "user_uninstalls": 11, "active_devices": 387, "install_events": 19, "uninstall_events": 11, "update_events": 18}, {"date": "2026-05-20", "device_installs": 20, "user_installs": 20, "user_uninstalls": 11, "active_devices": 396, "install_events": 20, "uninstall_events": 11, "update_events": 19}, {"date": "2026-05-21", "device_installs": 19, "user_installs": 19, "user_uninstalls": 11, "active_devices": 404, "install_events": 19, "uninstall_events": 11, "update_events": 19}, {"date": "2026-05-22", "device_installs": 19, "user_installs": 19, "user_uninstalls": 11, "active_devices": 412, "install_events": 19, "uninstall_events": 11, "update_events": 19}], "country_installs": [{"label": "\ud83c\uddfa\ud83c\uddf8 United States", "value": 90}, {"label": "\ud83c\uddee\ud83c\uddf3 India", "value": 89}, {"label": "\ud83c\udde9\ud83c\uddea Germany", "value": 40}, {"label": "\ud83c\udde7\ud83c\uddf7 Brazil", "value": 38}, {"label": "\ud83c\uddec\ud83c\udde7 United Kingdom", "value": 36}, {"label": "\ud83c\uddf2\ud83c\uddfd Mexico", "value": 29}, {"label": "\ud83c\uddee\ud83c\udde9 Indonesia", "value": 27}, {"label": "\ud83c\uddee\ud83c\uddf9 Italy", "value": 24}, {"label": "\ud83c\uddeb\ud83c\uddf7 France", "value": 20}, {"label": "\ud83c\udde8\ud83c\udde6 Canada", "value": 19}, {"label": "\ud83c\uddf5\ud83c\uddf1 Poland", "value": 19}, {"label": "\ud83c\uddea\ud83c\uddf8 Spain", "value": 18}, {"label": "\ud83c\udde6\ud83c\uddfa Australia", "value": 17}, {"label": "\ud83c\uddfb\ud83c\uddf3 Vietnam", "value": 16}, {"label": "\ud83c\uddf5\ud83c\udded Philippines", "value": 15}], "device_installs": [{"label": "e3q", "value": 49}, {"label": "pa3q", "value": 48}, {"label": "HWANE", "value": 47}, {"label": "m3q", "value": 44}, {"label": "a16", "value": 39}, {"label": "dm3q", "value": 35}, {"label": "OP5B05L1", "value": 30}, {"label": "tanzanite", "value": 28}, {"label": "dew", "value": 28}, {"label": "Infinix-X6525", "value": 27}, {"label": "a12s", "value": 24}, {"label": "V2511", "value": 23}], "os_installs": [{"label": "API 36", "value": 171}, {"label": "API 35", "value": 165}, {"label": "API 34", "value": 115}, {"label": "API 33", "value": 66}, {"label": "API 32", "value": 25}, {"label": "API 31", "value": 22}, {"label": "API 30", "value": 20}, {"label": "API 29", "value": 11}], "version_installs": [{"label": "v13", "value": 232}, {"label": "v12", "value": 123}, {"label": "v11", "value": 92}, {"label": "v10", "value": 48}, {"label": "v9", "value": 44}, {"label": "v8", "value": 34}, {"label": "v7", "value": 22}], "language_installs": [{"label": "en_US", "value": 176}, {"label": "en_GB", "value": 62}, {"label": "en_IN", "value": 60}, {"label": "es_US", "value": 47}, {"label": "pt_BR", "value": 43}, {"label": "de_DE", "value": 38}, {"label": "fr_FR", "value": 30}, {"label": "id_ID", "value": 22}, {"label": "it_IT", "value": 19}, {"label": "es_ES", "value": 19}], "crashes_timeline": [{"date": "2026-03-24", "crashes": 0, "anrs": 0}, {"date": "2026-03-25", "crashes": 0, "anrs": 0}, {"date": "2026-03-26", "crashes": 0, "anrs": 0}, {"date": "2026-03-27", "crashes": 0, "anrs": 0}, {"date": "2026-03-28", "crashes": 0, "anrs": 0}, {"date": "2026-03-29", "crashes": 0, "anrs": 0}, {"date": "2026-03-30", "crashes": 0, "anrs": 1}, {"date": "2026-03-31", "crashes": 0, "anrs": 0}, {"date": "2026-04-01", "crashes": 0, "anrs": 0}, {"date": "2026-04-02", "crashes": 0, "anrs": 0}, {"date": "2026-04-03", "crashes": 0, "anrs": 0}, {"date": "2026-04-04", "crashes": 0, "anrs": 0}, {"date": "2026-04-05", "crashes": 0, "anrs": 0}, {"date": "2026-04-06", "crashes": 0, "anrs": 0}, {"date": "2026-04-07", "crashes": 0, "anrs": 0}, {"date": "2026-04-08", "crashes": 0, "anrs": 0}, {"date": "2026-04-09", "crashes": 0, "anrs": 0}, {"date": "2026-04-10", "crashes": 1, "anrs": 0}, {"date": "2026-04-11", "crashes": 0, "anrs": 0}, {"date": "2026-04-12", "crashes": 0, "anrs": 0}, {"date": "2026-04-13", "crashes": 0, "anrs": 0}, {"date": "2026-04-14", "crashes": 0, "anrs": 0}, {"date": "2026-04-15", "crashes": 0, "anrs": 0}, {"date": "2026-04-16", "crashes": 0, "anrs": 0}, {"date": "2026-04-17", "crashes": 0, "anrs": 0}, {"date": "2026-04-18", "crashes": 0, "anrs": 0}, {"date": "2026-04-19", "crashes": 1, "anrs": 2}, {"date": "2026-04-20", "crashes": 0, "anrs": 0}, {"date": "2026-04-21", "crashes": 0, "anrs": 0}, {"date": "2026-04-22", "crashes": 0, "anrs": 0}, {"date": "2026-04-23", "crashes": 0, "anrs": 0}, {"date": "2026-04-24", "crashes": 0, "anrs": 0}, {"date": "2026-04-25", "crashes": 0, "anrs": 0}, {"date": "2026-04-26", "crashes": 0, "anrs": 0}, {"date": "2026-04-27", "crashes": 0, "anrs": 0}, {"date": "2026-04-28", "crashes": 0, "anrs": 0}, {"date": "2026-04-29", "crashes": 0, "anrs": 0}, {"date": "2026-04-30", "crashes": 0, "anrs": 0}, {"date": "2026-05-01", "crashes": 0, "anrs": 0}, {"date": "2026-05-02", "crashes": 0, "anrs": 0}, {"date": "2026-05-03", "crashes": 1, "anrs": 2}, {"date": "2026-05-04", "crashes": 0, "anrs": 0}, {"date": "2026-05-05", "crashes": 0, "anrs": 0}, {"date": "2026-05-06", "crashes": 0, "anrs": 0}, {"date": "2026-05-07", "crashes": 0, "anrs": 0}, {"date": "2026-05-08", "crashes": 0, "anrs": 0}, {"date": "2026-05-09", "crashes": 0, "anrs": 1}, {"date": "2026-05-10", "crashes": 1, "anrs": 0}, {"date": "2026-05-11", "crashes": 0, "anrs": 0}, {"date": "2026-05-12", "crashes": 0, "anrs": 0}, {"date": "2026-05-13", "crashes": 0, "anrs": 0}, {"date": "2026-05-14", "crashes": 0, "anrs": 0}, {"date": "2026-05-15", "crashes": 0, "anrs": 0}, {"date": "2026-05-16", "crashes": 2, "anrs": 0}, {"date": "2026-05-17", "crashes": 0, "anrs": 0}, {"date": "2026-05-18", "crashes": 0, "anrs": 2}, {"date": "2026-05-19", "crashes": 0, "anrs": 0}, {"date": "2026-05-20", "crashes": 0, "anrs": 0}, {"date": "2026-05-21", "crashes": 0, "anrs": 0}, {"date": "2026-05-22", "crashes": 0, "anrs": 0}], "star_dist": {"5": 5, "4": 1, "3": 1}};
+const TXT='#e6eaf3', MUTED='#8b94a7', GRID='#232a3a';
+Chart.defaults.color=MUTED; Chart.defaults.borderColor=GRID;
+Chart.defaults.font.family='-apple-system, BlinkMacSystemFont, Inter, Segoe UI, system-ui, sans-serif';
+
+new Chart(document.getElementById('cInstalls'), {
+  data: { labels: data.timeline.map(d=>d.date), datasets: [
+    { type:'bar', label:'User installs', data: data.timeline.map(d=>d.user_installs), backgroundColor:'rgba(122,162,255,0.55)', borderRadius:3 },
+    { type:'line', label:'Active devices', data: data.timeline.map(d=>d.active_devices), borderColor:'#b388ff', backgroundColor:'rgba(179,136,255,0.15)', tension:0.3, fill:true, pointRadius:0 },
+  ] },
+  options: { responsive:true, maintainAspectRatio:false, scales: { y: { beginAtZero:true }, x: { grid: { display:false }, ticks: { maxRotation:0, autoSkip:true, maxTicksLimit:12 } } }, plugins: { legend: { position:'top', labels: { color: TXT } } } }
+});
+
+// Apply buttons (copy CLI command to clipboard)
+document.querySelectorAll('.apply-btn').forEach(btn => {
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const cmd = btn.dataset.cmd;
+    try {
+      await navigator.clipboard.writeText(cmd);
+    } catch (err) {
+      // fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = cmd; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+    }
+    const orig = btn.textContent;
+    btn.classList.add('copied');
+    btn.textContent = '✓ copied';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = orig; }, 1400);
+  });
+});
+
+function hBar(id, items, color, max) {
+  const top = items.slice(0, max||10);
+  new Chart(document.getElementById(id), { type:'bar',
+    data: { labels: top.map(x=>x.label), datasets:[{ data: top.map(x=>x.value), backgroundColor: color, borderRadius:3 }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales: { x:{beginAtZero:true}, y:{grid:{display:false}} } }
+  });
+}
+hBar('cCountry', data.country_installs, 'rgba(122,162,255,0.7)', 15);
+hBar('cLang',    data.language_installs,'rgba(179,136,255,0.65)', 10);
+hBar('cDevice',  data.device_installs,  'rgba(74,222,128,0.55)',  12);
+
+const palette = ['#7aa2ff','#b388ff','#4ade80','#facc15','#f87171','#22d3ee','#f472b6','#a3e635','#fb923c','#94a3b8','#818cf8','#34d399'];
+function doughnut(id, items) {
+  new Chart(document.getElementById(id), { type:'doughnut',
+    data: { labels: items.map(x=>x.label), datasets:[{ data: items.map(x=>x.value), backgroundColor: palette, borderColor:'#0b0d12', borderWidth:2 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'58%', plugins: { legend: { position:'right', labels: { color: TXT, boxWidth:10 } } } }
+  });
+}
+doughnut('cOs',  data.os_installs);
+doughnut('cVer', data.version_installs);
+
+new Chart(document.getElementById('cCrash'), {
+  data: { labels: data.crashes_timeline.map(d=>d.date), datasets: [
+    { type:'bar', label:'Crashes', data: data.crashes_timeline.map(d=>d.crashes), backgroundColor:'#f87171', borderRadius:3 },
+    { type:'bar', label:'ANRs',    data: data.crashes_timeline.map(d=>d.anrs),    backgroundColor:'#fbbf24', borderRadius:3 },
+  ] },
+  options: { responsive:true, maintainAspectRatio:false, scales: { y: { beginAtZero:true, ticks: { stepSize:1 } }, x: { grid: { display:false } } }, plugins: { legend: { position:'top', labels: { color: TXT } } } }
+});
+
+new Chart(document.getElementById('cStars'), {
+  type:'bar',
+  data: { labels:['1★','2★','3★','4★','5★'], datasets:[{ data:[data.star_dist['1']||0,data.star_dist['2']||0,data.star_dist['3']||0,data.star_dist['4']||0,data.star_dist['5']||0], backgroundColor:['#f87171','#fb923c','#fbbf24','#60a5fa','#4ade80'], borderRadius:3 }] },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales: { y: { beginAtZero:true, ticks: { stepSize:1 } }, x: { grid: { display:false } } } }
+});
+</script>
+</body>
+</html>

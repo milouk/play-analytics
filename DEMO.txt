@@ -1,0 +1,2 @@
+This is a public demo with SYNTHETIC data — none of the apps, users, or sales are real.
+Source: https://github.com/milouk/play-analytics
